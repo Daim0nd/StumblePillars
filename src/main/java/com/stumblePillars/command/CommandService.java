@@ -29,6 +29,10 @@ public class CommandService {
         commandCollection.add(new ArenaCreateCommand(pl));
         commandCollection.add(new Pos1Command(pl));
         commandCollection.add(new EditCommand(pl));
+        commandCollection.add(new ArenasCommand(pl));
+        commandCollection.add(new TestCommand(pl));
+        commandCollection.add(new AddSpawnCommand(pl));
+        commandCollection.add(new SetLobbyCommand(pl));
 
         for (CommonCommand command : commandCollection){
 

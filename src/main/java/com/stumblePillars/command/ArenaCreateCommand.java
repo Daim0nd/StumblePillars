@@ -2,6 +2,7 @@ package com.stumblePillars.command;
 
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.stumblePillars.StumblePillars;
+import com.stumblePillars.game.Game;
 import com.sun.jdi.connect.Connector;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.entity.Player;
@@ -22,8 +23,9 @@ public class ArenaCreateCommand extends CommonCommand {
                     if (!(commandContext.sender().getSender() instanceof Player player)) return;
                     String arenaName = commandContext.get("name");
                     player.sendMessage(arenaName);
+                    Game game = getPlugin().getGameManager().createGame(arenaName);
+                    game.setWord(player.getWorld());
                     getPlugin().getGameManager().focus(player,getPlugin().getGameManager().getGame(arenaName).get());
-                    getPlugin().getGameManager().createGame(arenaName);
                 }
         ));
 

@@ -3,6 +3,7 @@ package com.stumblePillars.game;
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.configuration.GameConfig;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 
@@ -20,7 +21,7 @@ public class GameManager {
     public void registerGames(){
         Arrays.stream(pl.getGamesFolder().getFile().listFiles()).forEach(file -> {
             if (file.getAbsolutePath().endsWith(".yml")){
-                games.add(new Game("",pl));
+                games.add(new Game(file.getName().replace(".yml", ""),pl));
             }
         });
     }
@@ -38,8 +39,20 @@ public class GameManager {
         return Optional.empty();
     }
 
+    public Optional<Game> getGame(Player player){
+        for (Game game : games){
+            if (game.getPlayers().contains(player.getUniqueId())) return Optional.of(game);
+        }
+        return Optional.empty();
+    }
+
     public void focus(Player player, Game game){
         gameFocusMap.put(player.getUniqueId(),game);
+    }
+
+    public boolean isFocusing(Player player){
+        if (gameFocusMap.containsKey(player.getUniqueId())) return true;
+        return false;
     }
 
     public HashMap<UUID, Game> getGameFocusMap() {
@@ -57,4 +70,5 @@ public class GameManager {
     public StumblePillars getPl() {
         return pl;
     }
+
 }

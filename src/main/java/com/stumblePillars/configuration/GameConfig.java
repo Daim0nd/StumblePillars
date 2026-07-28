@@ -1,6 +1,8 @@
 package com.stumblePillars.configuration;
 
 import com.stumblePillars.StumblePillars;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -18,7 +20,7 @@ public class GameConfig {
         this.name = name;
         this.pl = pl;
         load();
-    };
+    }
 
     private void load(){
         file = new File(pl.getGamesFolder().getFile(),name + ".yml");
@@ -33,6 +35,23 @@ public class GameConfig {
 
         fileConfiguration = YamlConfiguration.loadConfiguration(file);
 
+        createSection("displayName");
+        createSection("world");
+        createSection("maxPlayers");
+        createSection("minPlayers");
+        createSection("waitLobby");
+        createSection("gameStartCountdown");
+        createSection("pos1");
+        createSection("pos2");
+        createSection("spawns");
+
+        save();
+    }
+
+    private void createSection(String path){
+        if (!fileConfiguration.isSet(path)) {
+            fileConfiguration.createSection(path);
+        }
     }
 
     public void save(){

@@ -19,7 +19,7 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT")
     implementation("org.incendo:cloud-paper:2.0.0-beta.10")
-
+    implementation("fr.mrmicky:fastboard:2.2.0")
 }
 
 java {
@@ -44,6 +44,8 @@ tasks {
 }
 tasks {
     shadowJar {
+        relocate("fr.mrmicky.fastboard", "com.stumblePillars.fastboard")
+        destinationDirectory.set(file("C:\\Users\\ItsDayMoon\\Downloads"))
         archiveClassifier.set("")
     }
 

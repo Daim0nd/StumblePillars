@@ -3,40 +3,88 @@ package com.stumblePillars;
 import com.stumblePillars.arena.ArenaManager;
 import com.stumblePillars.command.CommandService;
 import com.stumblePillars.configuration.GameFolder;
+import com.stumblePillars.configuration.MessagesConfig;
 import com.stumblePillars.game.GameManager;
+import com.stumblePillars.listener.PlayerListener;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.paper.PaperCommandManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public final class StumblePillars extends JavaPlugin {
 
+    private static final Logger log = LoggerFactory.getLogger(StumblePillars.class);
     private CommandService service;
     private @NonNull PaperCommandManager<CommandSourceStack> commandManager;
     private GameFolder gamesFolder;
     private ArenaManager arenaManager;
     private GameManager gameManager;
+    private MessagesConfig messagesConfig;
+    private TaskManager taskManager;
+
+    private Location lobby;
 
     @Override
     public void onEnable() {
 
         saveDefaultConfig();
-        this.commandManager = PaperCommandManager.builder().executionCoordinator(ExecutionCoordinator.simpleCoordinator()).buildOnEnable(this);
-        this.service = new CommandService(this);
-        this.service.init();
 
         this.arenaManager = new ArenaManager();
         this.gamesFolder = new GameFolder(this);
         this.gamesFolder.load();
 
         this.gameManager = new GameManager(this);
+        this.gameManager.registerGames();
+
+        this.commandManager = PaperCommandManager.builder().executionCoordinator(ExecutionCoordinator.simpleCoordinator()).buildOnEnable(this);
+        this.service = new CommandService(this);
+        this.service.init();
+
+        this.messagesConfig = new MessagesConfig(this);
+        this.messagesConfig.load();
+
+        this.taskManager = new TaskManager(this);
+        this.taskManager.startMainTask();
+
+        getConfig().options().copyDefaults(true);
+        getConfig().addDefault("lobby","NaN");
+        saveConfig();
+
+        this.setupLobby();
+
+        Bukkit.getPluginManager().registerEvents(new DoubleJump(),this);
+        Bukkit.getPluginManager().registerEvents(new PlayerListener(this),this);
     }
 
     @Override
     public void onDisable() {
         
+    }
+
+    private void setupLobby(){
+        String lobbySignature = getConfig().getString("lobby");
+        if (lobbySignature == null || !LocationUtil.isLocation(lobbySignature)){
+            this.lobby = null;
+            return;
+        }
+        this.lobby = LocationUtil.stringToLocation(getConfig().getString("lobby"));
+    }
+
+    public void setLobby(Location location){
+        getConfig().set("lobby",LocationUtil.locationToString(location));
+        saveConfig();
+    }
+
+    public boolean isLobbyEnable(){
+        if (this.lobby == null) return false;
+        return true;
     }
 
     public @NonNull PaperCommandManager<CommandSourceStack> getCommandManager() {
@@ -53,5 +101,13 @@ public final class StumblePillars extends JavaPlugin {
 
     public GameManager getGameManager() {
         return gameManager;
+    }
+
+    public TaskManager getTaskManager() {
+        return taskManager;
+    }
+
+    public Location getLobby() {
+        return lobby;
     }
 }

@@ -30,8 +30,9 @@ public abstract class CommonCommand {
         Command.Builder<CommandSourceStack> builder = manager.commandBuilder("sp","pillars").literal(commandName);
 
         if (!allowConsole){
-
+            builder.senderType(CommandSourceStack.class);
         }
+
         construct(manager,builder);
     }
 
