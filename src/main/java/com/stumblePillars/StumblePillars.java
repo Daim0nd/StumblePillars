@@ -4,12 +4,15 @@ import com.stumblePillars.arena.ArenaManager;
 import com.stumblePillars.command.CommandService;
 import com.stumblePillars.configuration.GameFolder;
 import com.stumblePillars.configuration.MessagesConfig;
+import com.stumblePillars.configuration.TemplatesFolder;
+import com.stumblePillars.game.Game;
 import com.stumblePillars.game.GameManager;
+import com.stumblePillars.game.GameState;
 import com.stumblePillars.listener.PlayerListener;
+import com.stumblePillars.util.LocationUtil;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.WorldCreator;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.incendo.cloud.execution.ExecutionCoordinator;
@@ -28,6 +31,7 @@ public final class StumblePillars extends JavaPlugin {
     private GameManager gameManager;
     private MessagesConfig messagesConfig;
     private TaskManager taskManager;
+    private TemplatesFolder templatesFolder;
 
     private Location lobby;
 
@@ -36,7 +40,10 @@ public final class StumblePillars extends JavaPlugin {
 
         saveDefaultConfig();
 
-        this.arenaManager = new ArenaManager();
+        this.templatesFolder = new TemplatesFolder(this);
+        this.templatesFolder.load();
+
+        this.arenaManager = new ArenaManager(this);
         this.gamesFolder = new GameFolder(this);
         this.gamesFolder.load();
 
@@ -59,13 +66,14 @@ public final class StumblePillars extends JavaPlugin {
 
         this.setupLobby();
 
-        Bukkit.getPluginManager().registerEvents(new DoubleJump(),this);
         Bukkit.getPluginManager().registerEvents(new PlayerListener(this),this);
     }
 
     @Override
     public void onDisable() {
-        
+        for (Game game : gameManager.getGames()){
+            if (game.getGameState().equals(GameState.RUNNING)) game.stop();
+        }
     }
 
     private void setupLobby(){
@@ -109,5 +117,9 @@ public final class StumblePillars extends JavaPlugin {
 
     public Location getLobby() {
         return lobby;
+    }
+
+    public TemplatesFolder getTemplatesFolder() {
+        return templatesFolder;
     }
 }

@@ -18,6 +18,7 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
 
 public class TestCommand extends CommonCommand {
 
@@ -32,13 +33,30 @@ public class TestCommand extends CommonCommand {
     public void construct(PaperCommandManager<CommandSourceStack> manager, Command.Builder<CommandSourceStack> builder) {
         manager.command(builder.handler(commandContext -> {
             if (!(commandContext.sender().getSender() instanceof Player player)) return;
-            Location loc = player.getLocation();
+//            Location loc = player.getLocation();
+//
+//            ItemDisplay display = loc.getWorld().spawn(loc, ItemDisplay.class);
+//            display.setItemStack(ItemStack.of(Material.BLACK_CONCRETE));
+//            display.setGlowing(true);
+//            display.setGlowColorOverride(Color.fromRGB(197,197,197));
+//            display.getTransformation().getScale().set(-5,-5,-5);
+//
+//            new BukkitRunnable(){
+//
+//                @Override
+//                public void run() {
+//                    loc.getWorld().spawnParticle(Particle.SMOKE,loc,5 );
+//                }
+//
+//            }.runTaskTimer(plugin,0l,10L);
 
-            player.openInventory(Bukkit.createInventory(player,27,"§fㇺ"));
-
-//            play(loc, loc.clone().subtract(new Vector(0, 20, 0)));
-
-
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    WorldCreator worldCreator = new WorldCreator("instance_1");
+                    worldCreator.createWorld();
+                }
+            }.runTaskLater(plugin,20*20);
 
         }));
     }

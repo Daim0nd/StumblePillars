@@ -29,10 +29,6 @@ public abstract class CommonCommand {
     public void construct(PaperCommandManager<CommandSourceStack> manager){
         Command.Builder<CommandSourceStack> builder = manager.commandBuilder("sp","pillars").literal(commandName);
 
-        if (!allowConsole){
-            builder.senderType(CommandSourceStack.class);
-        }
-
         construct(manager,builder);
     }
 

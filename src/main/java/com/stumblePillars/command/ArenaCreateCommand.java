@@ -18,13 +18,12 @@ public class ArenaCreateCommand extends CommonCommand {
 
     @Override
     public void construct(PaperCommandManager<CommandSourceStack> manager, Command.Builder<CommandSourceStack> builder) {
-        manager.command(builder.literal("create").required("name", StringParser.stringParser()).handler(
+        manager.command(builder.literal("create").handler(
                 commandContext -> {
                     if (!(commandContext.sender().getSender() instanceof Player player)) return;
-                    String arenaName = commandContext.get("name");
+                    String arenaName = player.getWorld().getName();
                     player.sendMessage(arenaName);
-                    Game game = getPlugin().getGameManager().createGame(arenaName);
-                    game.setWord(player.getWorld());
+                    Game game = getPlugin().getGameManager().createGame(arenaName, player.getWorld());
                     getPlugin().getGameManager().focus(player,getPlugin().getGameManager().getGame(arenaName).get());
                 }
         ));

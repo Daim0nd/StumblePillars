@@ -10,7 +10,7 @@ import java.util.*;
 public class RandomItemService {
 
     private TickTask giveItemTick;
-    private List<Material> materials = Arrays.stream(Material.values()).toList();
+    private List<Material> materials = Arrays.stream(Material.values()).filter(Material::isItem).toList();
     private List<UUID> players;
     int total = materials.size();
 
@@ -29,7 +29,6 @@ public class RandomItemService {
     private void giveRandomItem(Player player){
         Random random = new Random();
         int num = random.nextInt(total);
-
         player.give(new ItemStack(materials.get(num)));
     }
 

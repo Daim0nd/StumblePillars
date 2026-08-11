@@ -2,10 +2,13 @@ package com.stumblePillars.game;
 
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.configuration.GameConfig;
+import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 public class GameManager {
 
@@ -21,14 +24,21 @@ public class GameManager {
     public void registerGames(){
         Arrays.stream(pl.getGamesFolder().getFile().listFiles()).forEach(file -> {
             if (file.getAbsolutePath().endsWith(".yml")){
-                games.add(new Game(file.getName().replace(".yml", ""),pl));
+                games.add(new Game(file.getName().replace(".yml", ""), pl, new RandomMode(pl)));
             }
         });
     }
 
-    public Game createGame(String name){
-        Game game = new Game(name,pl);
+    public Game createGame(String name, World world){
+        Game game = new Game(name, pl, new RandomMode(pl));
         games.add(game);
+        try {
+            pl.getArenaManager().createTemplate(name,world).get();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
         return game;
     }
 

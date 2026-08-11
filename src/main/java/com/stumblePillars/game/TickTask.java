@@ -22,4 +22,7 @@ public class TickTask {
 
     }
 
+    public int getCountdown() {
+        return countdown;
+    }
 }
