@@ -2,6 +2,7 @@ plugins {
     id("java-library")
     id("xyz.jpenilla.run-paper") version "3.0.2"
     id("com.gradleup.shadow") version "9.0.0"
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.21"
 
 }
 
@@ -17,6 +18,7 @@ repositories {
 }
 
 dependencies {
+    paperweight.paperDevBundle("1.21.10-R0.1-SNAPSHOT")
     compileOnly("io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT")
     implementation("org.incendo:cloud-paper:2.0.0-beta.10")
     implementation("fr.mrmicky:fastboard:2.2.0")

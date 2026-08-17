@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/StumblePillars.main.iml" filepath="$PROJECT_DIR$/.idea/modules/StumblePillars.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/StumblePillars.test.iml" filepath="$PROJECT_DIR$/.idea/modules/StumblePillars.test.iml" />
     </modules>
   </component>
 </project>

@@ -38,8 +38,8 @@ public class LocationUtil {
     }
 
     public static Location stringToLocation(String string){
-        if (string == null) {
-            throw new IllegalArgumentException("String can't be null");
+        if (string == null || string.isEmpty()) {
+            return null;
         }
 
         String[] s = string.split(";");

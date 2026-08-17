@@ -13,6 +13,8 @@ public abstract class GameStyle {
         this.game = game;
     }
 
+    public abstract String getName();
+
     public abstract void tick();
 
     public abstract void onStart();

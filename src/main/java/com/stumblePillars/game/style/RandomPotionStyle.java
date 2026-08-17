@@ -2,6 +2,7 @@ package com.stumblePillars.game.style;
 
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.game.Game;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
@@ -22,9 +23,15 @@ public class RandomPotionStyle extends GameStyle{
     }
 
     @Override
+    public String getName() {
+        return "<gradient:#FF00C4:#E29FFF:#FF00C4>ᴘᴏçõᴇꜱ ᴅᴀ ꜱᴏʀᴛᴇ</gradient>";
+    }
+
+    @Override
     public void tick() {
         for (UUID uuid : getGame().getPlayers()){
             Player player = Bukkit.getPlayer(uuid);
+            if (player == null) continue;
             PotionEffect potion = getRandomPotion();
             player.addPotionEffect(potion);
             player.sendMessage(potion.getType().getKey().getKey());
@@ -33,7 +40,7 @@ public class RandomPotionStyle extends GameStyle{
 
     @Override
     public void onStart() {
-
+        getGame().broadcastPlayers(MiniMessage.miniMessage().deserialize(getName()));
     }
 
     @Override

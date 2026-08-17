@@ -1,0 +1,9 @@
+name: StumblePillars
+version: '1.0-SNAPSHOT'
+
+main: com.stumblePillars.StumblePillars
+api-version: '1.19'
+load: POSTWORLD
+
+authors: [ Daimond ]
+

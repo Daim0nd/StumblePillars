@@ -1,20 +1,18 @@
 package com.stumblePillars.game;
 
-import com.stumblePillars.SavedBlock;
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.arena.ArenaInstance;
-import com.stumblePillars.arena.ArenaReload;
-import com.stumblePillars.arena.Cuboid;
 import com.stumblePillars.configuration.GameConfig;
 import com.stumblePillars.configuration.MessagesConfig;
 import com.stumblePillars.fastboard.GameBoard;
+import com.stumblePillars.game.style.GameStyle;
 import com.stumblePillars.util.LocationUtil;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.WorldCreator;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -22,7 +20,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 public class Game {
 
@@ -31,39 +28,31 @@ public class Game {
     private List<UUID> players = new ArrayList<>();
     private GameConfig gameConfig;
     private FileConfiguration config;
-    private TickTask waitTimerTask;
-    private TickTask countdownTimerTask;
     private RandomItemService randomService;
-    private Cuboid arenaCuboid;
-    private Queue<SavedBlock> breakedBlocks = new ArrayDeque<>();
-    private Queue<SavedBlock> placedBlocks = new ArrayDeque<>();
     private World world;
     private ArenaInstance arenaInstance;
+    private Timer gameStartTimer;
+    private Timer gameFinishTimer;
 
     private GameMode mode;
     private String name;
-    private String displayName;
     private int maxPlayers;
     private int minPlayers;
     private Location waitLobby;
-    private int countGameStart = 0;
-    private final int COUNTDOWN_DURATION = 30;
+    private int WAIT_COUNTDOWN_DURATION = 30;
+    private int GAME_COUNTDOWN_DURATION = 5 * 60;
     private boolean isCountingDown = false;
     private List<Location> spawns;
     private HashMap<Player, Location> spawnLocationMap = new HashMap<>();
-    private Location pos1;
-    private Location pos2;
+    private Location russianRouletteLocation;
+    private final Map<UUID, GameBoard> gameBoards = new HashMap<>();
 
-    public Game(String name, StumblePillars pl) {
-        this(name, pl, new NoOpMode());
-    }
-
-    public Game(String name, StumblePillars pl, GameMode mode) {
+    public Game(String name, StumblePillars pl, String mode) {
         this.name = name;
         this.gameConfig = new GameConfig(name, pl);
         this.config = gameConfig.getConfig();
         this.pl = pl;
-        this.mode = mode;
+        this.mode = getGameMode(mode);
         this.load();
     }
 
@@ -72,21 +61,43 @@ public class Game {
         this.waitLobby = LocationUtil.stringToLocation(config.getString("waitLobby"));
         this.minPlayers = config.getInt("minPlayers");
         this.maxPlayers = config.getInt("maxPlayers");
-        this.displayName = config.getString("displayName");
-        this.pos1 = LocationUtil.stringToLocation(config.getString("pos1"));
-        this.pos2 = LocationUtil.stringToLocation(config.getString("pos2"));
-        if (pos1 != null && pos2 != null) this.arenaCuboid = new Cuboid(pos1, pos2);
-        this.spawns = config.getStringList("spawns").isEmpty() ? new ArrayList<>() : convertSpawns(config.getStringList("spawns"));
+        this.WAIT_COUNTDOWN_DURATION = config.getInt("gameStartCountdown");
+        List<String> spawnList = config.getStringList("spawns");
+        this.spawns = spawnList == null || spawnList.isEmpty() ? new ArrayList<>() : convertSpawns(spawnList);
+        this.russianRouletteLocation = LocationUtil.stringToLocation(config.getString("russianRouletteLoc"));
+        this.mode = getGameMode(config.getString("gameMode"));
     }
 
-    public void setPos1(Location location) {
-        config.set("pos1", LocationUtil.locationToString(location));
+    public void setWaitLobby(Location location) {
+        config.set("waitLobby", LocationUtil.locationToString(location));
         gameConfig.save();
+        this.waitLobby = location;
     }
 
-    public void setPos2(Location location) {
-        config.set("pos2", LocationUtil.locationToString(location));
+   public void setMinPlayers(int amount){
+        config.set("minPlayers",amount);
         gameConfig.save();
+        this.minPlayers = amount;
+   }
+
+   public void setMaxPlayers(int amount){
+       config.set("maxPlayers",amount);
+       gameConfig.save();
+       this.maxPlayers = amount;
+   }
+
+   public void setRussianRouletteLoc(Location loc){
+        config.set("russianRouletteLoc",LocationUtil.locationToString(loc));
+        gameConfig.save();;
+        this.russianRouletteLocation = loc;
+   }
+
+    private GameMode getGameMode(String name){
+        switch (name){
+            case "NORMAL": return new NoOpMode();
+            case "RANDOM": return new RandomMode(pl);
+            default: return new NoOpMode();
+        }
     }
 
     public void addSpawn(Location location) {
@@ -104,6 +115,10 @@ public class Game {
 
     public void join(Player player) {
         if (!isConfigured()) {
+            if (player.isOp()){
+                missingSettings().forEach(context -> player.sendMessage(context));
+                return;
+            }
             player.sendMessage(Component.text(MessagesConfig.INCOMPLETE_GAME));
             return;
         }
@@ -118,6 +133,7 @@ public class Game {
             return;
         }
 
+        player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_JOIN));
         UUID uuid = player.getUniqueId();
         players.add(uuid);
         toWaitLobby(player);
@@ -126,7 +142,8 @@ public class Game {
                 .replace("{current}", String.valueOf(players.size()))
                 .replace("{max}", String.valueOf(maxPlayers));
         broadcastPlayers(Component.text(joined));
-        GameBoard gameBoard = new GameBoard(player);
+        GameBoard gameBoard = new GameBoard(player,pl);
+        gameBoards.put(uuid, gameBoard);
 
         checkAndStartCountdown();
     }
@@ -137,11 +154,24 @@ public class Game {
         for (UUID uuid : players) {
             Player player = Bukkit.getPlayer(uuid);
 
-            if (player == null || !spawnsIterator.hasNext()) {
+            if (player == null) {
                 continue;
             }
 
-            Location spawn = spawnsIterator.next();
+            Location spawn;
+            if (spawnsIterator.hasNext()) {
+                spawn = spawnsIterator.next();
+            } else if (!spawns.isEmpty()) {
+                spawn = spawns.get(0);
+            } else {
+                spawn = waitLobby;
+            }
+
+            if (spawn == null) {
+                continue;
+            }
+
+            spawn = spawn.clone();
             spawn.setWorld(world);
 
             spawnLocationMap.put(player, spawn);
@@ -151,34 +181,32 @@ public class Game {
     private void checkAndStartCountdown() {
         if (players.size() >= minPlayers && !isCountingDown) {
             isCountingDown = true;
-            countGameStart = COUNTDOWN_DURATION;
-            broadcastPlayers(Component.text(MessagesConfig.GAME_WILL_START.replace("{seconds}", String.valueOf(COUNTDOWN_DURATION))));
+            broadcastPlayers(Component.text(MessagesConfig.GAME_WILL_START.replace("{seconds}", String.valueOf(WAIT_COUNTDOWN_DURATION))));
 
-            countdownTimerTask = new TickTask(20, this::decrementCountdown);
-            pl.getTaskManager().register(countdownTimerTask);
+            this.gameStartTimer = new Timer(pl,WAIT_COUNTDOWN_DURATION);
+            gameStartTimer.start(this::gameStartCountdown);
         } else if (players.size() < minPlayers && isCountingDown) {
-            stopCountdown();
+            gameStartTimer.stop();
             broadcastPlayers(Component.text(MessagesConfig.GAME_COUNTDOWN_CANCELLED));
         }
     }
 
-    private void decrementCountdown() {
-        countGameStart--;
+    private void gameStartCountdown() {
+        int countdown = gameStartTimer.getCountdown();
+        if (countdown > 0) {
+            showCountdownTitle(countdown);
 
-        if (countGameStart > 0) {
-            showCountdownTitle();
-
-            if (countGameStart >= 1) {
-                broadcastPlayers(Component.text(MessagesConfig.GAME_COUNTDOWN.replace("{seconds}", String.valueOf(countGameStart))));
+            if (countdown >= 1) {
+                broadcastPlayers(Component.text(MessagesConfig.GAME_COUNTDOWN.replace("{seconds}", String.valueOf(countdown))));
             }
         } else {
-            stopCountdown();
+            gameStartTimer.stop();
             start();
         }
     }
 
-    private void showCountdownTitle() {
-        String text = "§e" + countGameStart;
+    private void showCountdownTitle(int countdown) {
+        String text = "§e" + countdown;
         players.forEach(uuid -> {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) {
@@ -192,14 +220,6 @@ public class Game {
         });
     }
 
-    private void stopCountdown() {
-        isCountingDown = false;
-        if (countdownTimerTask != null) {
-            pl.getTaskManager().remove(countdownTimerTask);
-            countdownTimerTask = null;
-        }
-    }
-
     public void start() {
         if (gameState != GameState.WAITING) {
             return;
@@ -208,7 +228,6 @@ public class Game {
         if (players.size() < minPlayers) {
             broadcastPlayers(Component.text(MessagesConfig.GAME_NOT_ENOUGH_PLAYERS));
             isCountingDown = false;
-            countGameStart = 0;
             return;
         }
 
@@ -224,24 +243,47 @@ public class Game {
                         arenaInstance = new ArenaInstance(arenaName,name,world);
 
                         gameState = GameState.RUNNING;
+                        gameFinishTimer = new Timer(pl,60*5);
+                        gameFinishTimer.start(Game.this::gameFinishCountdown);
                         broadcastPlayers(Component.text(MessagesConfig.GAME_STARTED));
                         mapSpawns();
                         players.forEach(uuid -> {
                             Player player = Bukkit.getPlayer(uuid);
                             if (player != null) {
                                 player.sendMessage(Component.text(MessagesConfig.GAME_START_TEXT));
-                                player.teleport(spawnLocationMap.get(player));
+                                Location spawn = spawnLocationMap.get(player);
+                                if (spawn != null) {
+                                    player.teleport(spawn);
+                                }
                             }
                         });
                         randomService = new RandomItemService(players);
                         pl.getTaskManager().register(randomService.getGiveItemTick());
 
+                        mode.onStart(Game.this);
+
                     }
                 }.runTask(pl);
 
+            }).exceptionally(ex -> {
+                pl.getSLF4JLogger().error("Falha ao criar arena para o jogo " + name, ex);
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        gameState = GameState.WAITING;
+                        isCountingDown = false;
+                        broadcastPlayers(Component.text("§cFalha ao iniciar o jogo!"));
+                    }
+                }.runTask(pl);
+                return null;
             });
+    }
 
-        mode.onStart(this);
+    private void gameFinishCountdown(){
+        int countdown = gameFinishTimer.getCountdown();
+        if (countdown <= 0){
+            stop();
+        }
     }
 
     public void leave(Player player) {
@@ -251,13 +293,13 @@ public class Game {
         }
 
         players.remove(uuid);
+        removeBoard(uuid);
         String left = MessagesConfig.PLAYER_LEFT
                 .replace("{player}", player.getName())
                 .replace("{current}", String.valueOf(players.size()))
                 .replace("{max}", String.valueOf(maxPlayers));
         broadcastPlayers(Component.text(left));
 
-        // Se estava em countdown e agora não temos mínimo, parar
         if (gameState == GameState.WAITING) {
             checkAndStartCountdown();
         }
@@ -271,6 +313,7 @@ public class Game {
 
         player.getInventory().clear();
         players.remove(uuid);
+        removeBoard(uuid);
         checkLastPlayer();
         String left = MessagesConfig.PLAYER_LEFT
                 .replace("{player}", player.getName())
@@ -278,31 +321,46 @@ public class Game {
                 .replace("{max}", String.valueOf(maxPlayers));
         broadcastPlayers(Component.text(left));
 
-        if (player.isDead()) {
-            player.spigot().respawn();
-        }
-
-        player.teleport(pl.getLobby());
+            Bukkit.getScheduler().runTaskLater(pl, () -> {
+                player.spigot().respawn();
+                if (pl.getLobby() != null) {
+                    player.teleport(pl.getLobby());
+                }
+            }, 2L);
     }
 
     public void stop() {
         gameState = GameState.WAITING;
 
-        ArenaReload arenaReload = new ArenaReload(breakedBlocks, placedBlocks, pl);
-        arenaReload.startReload();
-
+        gameFinishTimer.stop();
         spawnLocationMap.clear();
-        pl.getTaskManager().remove(randomService.getGiveItemTick());
+        if (randomService != null) {
+            pl.getTaskManager().remove(randomService.getGiveItemTick());
+            randomService = null;
+        }
 
         players.forEach(uuid -> {
             Player player = Bukkit.getPlayer(uuid);
             if (player == null) return;
-            player.teleport(pl.getLobby());
-
+            if (pl.getLobby() != null) {
+                player.teleport(pl.getLobby());
+            }
         });
 
+        isCountingDown = false;
         players.clear();
-        pl.getArenaManager().deleteInstance(arenaInstance.getInstanceName());
+        clearBoards();
+
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (arenaInstance != null) {
+                    pl.getArenaManager().deleteInstance(arenaInstance.getInstanceName());
+                    arenaInstance = null;
+                }
+            }
+        }.runTaskLater(pl,20*10);
+
 
         mode.onStop(this);
     }
@@ -317,15 +375,26 @@ public class Game {
 
     public void win(Player player) {
         player.getInventory().clear();
-        player.sendMessage("Você ganhou!");
+        player.sendMessage(Component.text("Você ganhou!"));
     }
 
+    private void removeBoard(UUID uuid) {
+        GameBoard board = gameBoards.remove(uuid);
+        if (board != null) {
+            board.delete();
+        }
+    }
+
+    private void clearBoards() {
+        gameBoards.values().forEach(GameBoard::delete);
+        gameBoards.clear();
+    }
 
     private void toWaitLobby(Player player) {
         player.teleport(waitLobby);
     }
 
-    private void broadcastPlayers(Component message) {
+    public void broadcastPlayers(Component message) {
         players.forEach(uuid -> {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null) {
@@ -335,18 +404,41 @@ public class Game {
     }
 
     public boolean isConfigured() {
-        if (waitLobby == null) {
+        if (waitLobby == null || russianRouletteLocation == null
+        || maxPlayers <= 0 || minPlayers <= 0 || minPlayers >= maxPlayers
+        || spawns.isEmpty() || spawns.size() < minPlayers) {
             return false;
         }
         return true;
     }
 
-    public String getName() {
-        return name;
+    public List<Component> missingSettings(){
+        if (isConfigured()) return List.of();
+
+        String PREFIX = "<color:#777777>Ξ</color>";
+
+        List<Component> contexts = new ArrayList<>();
+        contexts.add(mm("<b><color:#B5B5B5>CONFIGURAÇÕES FALTANTES</color></b>"));
+        contexts.add(mm(""));
+
+        if (waitLobby == null) contexts.add(mm(PREFIX+" Lobby de espera não configurado!"));
+        if (russianRouletteLocation == null) contexts.add(mm(PREFIX+" Localização da roleta russa não configurado!"));
+        if (maxPlayers <= 0) contexts.add(mm(PREFIX+" Jogadores máximos menor ou igual a zero"));
+        if (minPlayers <= 0) contexts.add(mm(PREFIX+" Jogadores mínimos menores ou iguais a zero"));
+        if (minPlayers >= maxPlayers) contexts.add(mm(PREFIX+" Jogadores mínimos maior que jogadores máximos"));
+        if (spawns.isEmpty() || spawns.size() <= minPlayers) contexts.add(mm(PREFIX+" Localização dos spawns inexistentes ou quantidade de jogadores mínimos é maior que a quantidade de spawns"));
+
+        contexts.add(mm(""));
+
+        return contexts;
     }
 
-    public String getDisplayName() {
-        return displayName;
+    private Component mm(String s){
+        return MiniMessage.miniMessage().deserialize(s);
+    }
+
+    public String getName() {
+        return name;
     }
 
     public int getMaxPlayers() {
@@ -366,34 +458,31 @@ public class Game {
     }
 
     public List<UUID> getPlayers() {
-        return players;
+        return Collections.unmodifiableList(players);
     }
 
     public int getPlayerCount() {
         return players.size();
     }
 
-    public boolean isCountingDown() {
-        return isCountingDown;
-    }
-
-    public int getCountdownTime() {
-        return countGameStart;
-    }
-
-    public Cuboid getArenaCuboid() {
-        return arenaCuboid;
-    }
-
-    public Queue<SavedBlock> getBreakedBlocks() {
-        return breakedBlocks;
-    }
-
-    public Queue<SavedBlock> getPlacedBlocks() {
-        return placedBlocks;
-    }
-
     public World getWorld() {
         return world;
+    }
+
+    public Location getRussianRouletteLocation() {
+        if (russianRouletteLocation == null) return null;
+        russianRouletteLocation.setWorld(world);
+        return russianRouletteLocation;
+    }
+
+    public Timer getGameFinishTimer() {
+        return gameFinishTimer;
+    }
+
+    public GameStyle getCurrentGameStyle() {
+        if (mode instanceof RandomMode) {
+            return ((RandomMode) mode).getCurrentStyle();
+        }
+        return null;
     }
 }

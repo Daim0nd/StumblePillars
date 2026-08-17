@@ -34,17 +34,16 @@ public class GameConfig {
         }
 
         fileConfiguration = YamlConfiguration.loadConfiguration(file);
+        fileConfiguration.options().copyDefaults(true);
 
-        createSection("displayName");
-        createSection("world");
-        createSection("maxPlayers");
-        createSection("minPlayers");
-        createSection("waitLobby");
-        createSection("gameStartCountdown");
-        createSection("pos1");
-        createSection("pos2");
+        fileConfiguration.addDefault("gameMode","NORMAL");
+        fileConfiguration.addDefault("world","");
+        fileConfiguration.addDefault("maxPlayers",10);
+        fileConfiguration.addDefault("minPlayers",2);
+        fileConfiguration.addDefault("gameStartCountdown",30);
+        fileConfiguration.addDefault("waitLobby","");
+        fileConfiguration.addDefault("russianRouletteLoc","");
         createSection("spawns");
-
         save();
     }
 

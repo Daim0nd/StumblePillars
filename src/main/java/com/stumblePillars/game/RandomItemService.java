@@ -22,6 +22,7 @@ public class RandomItemService {
     public void tickDelivery(){
         for (UUID uuid: players){
             Player player = Bukkit.getPlayer(uuid);
+            if (player == null) continue;
             giveRandomItem(player);
         }
     }

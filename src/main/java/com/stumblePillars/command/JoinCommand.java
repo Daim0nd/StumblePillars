@@ -7,9 +7,10 @@ import com.stumblePillars.game.TickTask;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.incendo.cloud.Command;
-import org.incendo.cloud.paper.PaperCommandManager;
+import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.incendo.cloud.parser.standard.StringParser;
 
 import java.util.Optional;
@@ -21,10 +22,11 @@ public class JoinCommand extends CommonCommand{
     }
 
     @Override
-    public void construct(PaperCommandManager<CommandSourceStack> manager, Command.Builder<CommandSourceStack> builder) {
+    public void construct(LegacyPaperCommandManager<CommandSender> manager, Command.Builder<CommandSender> builder) {
         manager.command(
                 builder.required("name", StringParser.stringParser()).handler(commandContext -> {
-                    if (!(commandContext.sender().getSender() instanceof Player player)) return;
+                    Player player = (Player) commandContext.sender();
+
                     String arenaName = commandContext.get("name");
                     Optional<Game> opGame = getPlugin().getGameManager().getGame(arenaName);
 
@@ -35,7 +37,7 @@ public class JoinCommand extends CommonCommand{
 
                     Game game = opGame.get();
                     game.join(player);
-                    player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_JOIN));
+
                 })
         );
     }

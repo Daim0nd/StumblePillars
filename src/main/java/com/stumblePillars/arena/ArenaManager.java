@@ -34,23 +34,24 @@ public class ArenaManager {
             Path source = templatesFolder.getFile().toPath().resolve(templateName);
             Path path = Bukkit.getWorldContainer().toPath().resolve(instanceName);
 
-            try {
-                Files.walk(source).forEach(file ->{
+            try (java.util.stream.Stream<Path> walk = Files.walk(source)) {
+                walk.forEach(file -> {
                     try {
-                        Path target = path.resolve(source.relativize(file));
-
                         if (Files.isDirectory(file)) {
-                            Files.createDirectories(target);
-                        } else {
-                            Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
+                            return;
                         }
-
+                        if (isIgnoredFile(file.getFileName().toString())) {
+                            return;
+                        }
+                        Path target = path.resolve(source.relativize(file));
+                        Files.createDirectories(target.getParent());
+                        Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
                     } catch (IOException e) {
                         throw new CompletionException(e);
                     }
                 });
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new CompletionException(e);
             }
             return instanceName;
         });
@@ -124,6 +125,7 @@ public class ArenaManager {
         if(!path.exists()) return false;
 
         File[] files = path.listFiles();
+        if (files == null) return path.delete();
 
         for (File file : files){
             if (file.isDirectory()) deleteFolder(file);
@@ -133,7 +135,7 @@ public class ArenaManager {
     }
 
     private String generateCustomId(String name){
-        return "sp-" + name +"-instance";
+        return "sp-" + name + "-" + System.currentTimeMillis();
     }
 
     private boolean isIgnoredFile(String name) {

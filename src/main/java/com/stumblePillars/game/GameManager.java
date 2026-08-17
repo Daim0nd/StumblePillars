@@ -4,9 +4,11 @@ import com.stumblePillars.StumblePillars;
 import com.stumblePillars.configuration.GameConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
@@ -21,16 +23,19 @@ public class GameManager {
         this.pl = pl;
     }
 
-    public void registerGames(){
-        Arrays.stream(pl.getGamesFolder().getFile().listFiles()).forEach(file -> {
-            if (file.getAbsolutePath().endsWith(".yml")){
-                games.add(new Game(file.getName().replace(".yml", ""), pl, new RandomMode(pl)));
+    public void registerGames() {
+        File[] files = pl.getGamesFolder().getFile().listFiles();
+        if (files == null) return;
+        Arrays.stream(files).forEach(file -> {
+            if (file.getAbsolutePath().endsWith(".yml")) {
+                String mode = YamlConfiguration.loadConfiguration(file).getString("gameMode");
+                games.add(new Game(file.getName().replace(".yml", ""), pl, mode));
             }
         });
     }
 
-    public Game createGame(String name, World world){
-        Game game = new Game(name, pl, new RandomMode(pl));
+    public Game createGame(String name, World world, String gameMode){
+        Game game = new Game(name, pl,gameMode );
         games.add(game);
         try {
             pl.getArenaManager().createTemplate(name,world).get();

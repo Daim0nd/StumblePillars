@@ -1,8 +1,19 @@
 package com.stumblePillars.command;
 
 import com.stumblePillars.StumblePillars;
+import com.stumblePillars.game.TickTask;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
+import net.minecraft.network.protocol.PacketType;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.*;
+import org.bukkit.command.CommandSender;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
@@ -11,6 +22,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.incendo.cloud.Command;
+import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.incendo.cloud.paper.PaperCommandManager;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -30,33 +42,13 @@ public class TestCommand extends CommonCommand {
     }
 
     @Override
-    public void construct(PaperCommandManager<CommandSourceStack> manager, Command.Builder<CommandSourceStack> builder) {
+    public void construct(LegacyPaperCommandManager<CommandSender> manager, Command.Builder<CommandSender> builder) {
         manager.command(builder.handler(commandContext -> {
-            if (!(commandContext.sender().getSender() instanceof Player player)) return;
-//            Location loc = player.getLocation();
-//
-//            ItemDisplay display = loc.getWorld().spawn(loc, ItemDisplay.class);
-//            display.setItemStack(ItemStack.of(Material.BLACK_CONCRETE));
-//            display.setGlowing(true);
-//            display.setGlowColorOverride(Color.fromRGB(197,197,197));
-//            display.getTransformation().getScale().set(-5,-5,-5);
-//
-//            new BukkitRunnable(){
-//
-//                @Override
-//                public void run() {
-//                    loc.getWorld().spawnParticle(Particle.SMOKE,loc,5 );
-//                }
-//
-//            }.runTaskTimer(plugin,0l,10L);
+            Player player = (Player) commandContext.sender();
 
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    WorldCreator worldCreator = new WorldCreator("instance_1");
-                    worldCreator.createWorld();
-                }
-            }.runTaskLater(plugin,20*20);
+
+
+
 
         }));
     }

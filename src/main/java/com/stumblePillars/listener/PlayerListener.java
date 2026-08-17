@@ -1,27 +1,21 @@
 package com.stumblePillars.listener;
 
-import com.stumblePillars.SavedBlock;
 import com.stumblePillars.StumblePillars;
-import com.stumblePillars.arena.Cuboid;
 import com.stumblePillars.game.Game;
 import com.stumblePillars.game.GameState;
 import com.stumblePillars.game.ItemFactory;
-import io.papermc.paper.event.entity.FishHookStateChangeEvent;
-import org.bukkit.block.Block;
+import com.stumblePillars.game.style.RussianRouletteStyle;
 import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Skeleton;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.components.UseCooldownComponent;
 import org.bukkit.util.Vector;
 
 import java.util.Optional;
@@ -65,45 +59,6 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event){
-        Player player = event.getPlayer();
-        Optional<Game> opGame = pl.getGameManager().getGame(player);
-        if (opGame.isEmpty()) return;
-        Game game = opGame.get();
-
-        Cuboid cuboid = game.getArenaCuboid();
-    }
-
-    @EventHandler
-    public void onBlockBreak(BlockBreakEvent event){
-        Player player = event.getPlayer();
-
-        Optional<Game> opGame = pl.getGameManager().getGame(player);
-        if (opGame.isEmpty()) return;
-        Game game = opGame.get();
-
-        if (game.getGameState().equals(GameState.RUNNING)){
-            Block block = event.getBlock();
-            SavedBlock savedBlock = new SavedBlock(block.getLocation().clone(),block.getBlockData().clone());
-            if (!game.getPlacedBlocks().contains(savedBlock)) game.getBreakedBlocks().add(savedBlock);
-        }
-
-    }
-    @EventHandler
-    public void onBlockPlace(BlockPlaceEvent event){
-        Player player = event.getPlayer();
-
-        Optional<Game> opGame = pl.getGameManager().getGame(player);
-        if (opGame.isEmpty()) return;
-        Game game = opGame.get();
-
-        if (game.getGameState().equals(GameState.RUNNING)){
-            Block block = event.getBlock();
-            game.getPlacedBlocks().add(new SavedBlock(block.getLocation().clone(),block.getBlockData().clone()));
-        }
-    }
-
-    @EventHandler
     public void onHookChangeState(PlayerFishEvent event){
         Player player = event.getPlayer();
         ItemStack current = player.getInventory().getItemInMainHand();
@@ -119,15 +74,18 @@ public class PlayerListener implements Listener {
         }
     }
 
+    @EventHandler
+    public void onInteractEntity(PlayerInteractEntityEvent event) {
+        if (!(event.getRightClicked() instanceof Skeleton skeleton)) return;
 
+        Player player = event.getPlayer();
+        for (Game game : pl.getGameManager().getGames()) {
+            if (!game.getPlayers().contains(player.getUniqueId())) continue;
+            if (!(game.getCurrentGameStyle() instanceof RussianRouletteStyle roulette)) return;
 
-
-
-
-
-
-
-
+            roulette.handleSkeletonClick(player, skeleton);
+            return;
+        }
+    }
 
 }
-

@@ -2,6 +2,7 @@ package com.stumblePillars.game.style;
 
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.game.Game;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.*;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
@@ -26,12 +27,20 @@ public class MeteorStyle extends GameStyle{
     }
 
     @Override
+    public String getName() {
+        return "<gradient:#FF5300:#FFBE9F:#FF5300>ᴄʜᴜᴠᴀ ᴅᴇ ᴍᴇᴛᴇᴏʀᴏꜱ</gradient>";
+    }
+
+    @Override
     public void tick() {
         List<UUID> players = getGame().getPlayers();
         int size = players.size();
+        if (size == 0) return;
 
         int luckyNumber = random.nextInt(size);
         Player player = Bukkit.getPlayer(players.get(luckyNumber));
+        if (player == null) return;
+
         Location start = player.getLocation().clone().add(0,50,0);
         Location end = player.getLocation().clone();
 
@@ -40,7 +49,7 @@ public class MeteorStyle extends GameStyle{
 
     @Override
     public void onStart() {
-
+        getGame().broadcastPlayers(MiniMessage.miniMessage().deserialize(getName()));
     }
 
     @Override
@@ -163,7 +172,7 @@ public class MeteorStyle extends GameStyle{
                 world.spawnParticle(Particle.CAMPFIRE_SIGNAL_SMOKE, loc, 80, 2, 2, 2, 0);
 
                 world.playSound(loc, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, 4f, 0.7f);
-                world.createExplosion(loc,4f,true,true);
+                world.createExplosion(loc,0.5f,true,true);
             }
 
         }.runTaskTimer(getPlugin(), 0L, 1L);

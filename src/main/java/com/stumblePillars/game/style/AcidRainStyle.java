@@ -2,6 +2,7 @@ package com.stumblePillars.game.style;
 
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.game.Game;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -13,9 +14,15 @@ public class AcidRainStyle extends GameStyle{
     }
 
     @Override
+    public String getName() {
+        return "<gradient:#005AFF:#9FD8FF:#005AFF>ᴄʜᴜᴠᴀ áᴄɪᴅᴀ</gradient>";
+    }
+
+    @Override
     public void tick() {
         for (UUID uuid : getGame().getPlayers()){
             Player player = Bukkit.getPlayer(uuid);
+            if (player == null) continue;
             if (player.isInRain()) {
                 if (player.getHealth() != 1) {
                     player.damage(1);
@@ -27,6 +34,7 @@ public class AcidRainStyle extends GameStyle{
     @Override
     public void onStart() {
         getGame().getWorld().setStorm(true);
+        getGame().broadcastPlayers(MiniMessage.miniMessage().deserialize(getName()));
     }
 
     @Override

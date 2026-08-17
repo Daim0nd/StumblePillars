@@ -3,6 +3,7 @@ package com.stumblePillars.game.style;
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.game.Game;
 import com.stumblePillars.game.Wormhole;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
@@ -19,18 +20,29 @@ public class WormholeStyle extends GameStyle {
         super(pl, game);
     }
 
+    @Override
+    public String getName() {
+        return "<gradient:#5700E5:#CA9FD6>ʙᴜʀᴀᴄᴏ </gradient><gradient:#CA9FD6:#5700E5>ᴅᴇ ᴍɪɴʜᴏᴄᴀ</gradient>";
+    }
+
     private Wormhole lastWormhole;
     private int spawnCount;
     private int particleCount;
 
     @Override
     public void tick() {
+        if (getGame().getPlayers().size() < 2) return;
+
         if (spawnCount >= 20 * 10) {
             Player player1 = getRandomPlayer();
             Player player2 = getRandomPlayer();
-            while (player1 == player2) player2 = getRandomPlayer();
+            while (player2 != null && player1 != null && player1 == player2) player2 = getRandomPlayer();
+            if (player1 == null || player2 == null) {
+                spawnCount = 0;
+                return;
+            }
 
-            if (lastWormhole != null) lastWormhole.delete();
+            if (lastWormhole != null) lastWormhole.getSphereEngine().deleteAll();
 
             Wormhole wormhole = new Wormhole(player1.getLocation().clone(), player2.getLocation().clone());
             wormhole.spawn();
@@ -39,21 +51,8 @@ public class WormholeStyle extends GameStyle {
         }
         if (particleCount >= 2) {
             if (lastWormhole != null){
-                int radius = 3;
-                for (double rad = 0; rad < 6.28; rad += 0.08) {
-                    double x1 = Math.cos(rad) * radius + lastWormhole.getEntrance1().x();
-                    double y1 = Math.sin(rad) * radius + lastWormhole.getEntrance1().y();
-                    double z1 = lastWormhole.getEntrance1().z();
-
-                    lastWormhole.getEntrance1().getWorld().spawnParticle(Particle.PORTAL,x1,y1,z1,1);
-                }
-                for (double rad = 0; rad < 6.28; rad += 0.08) {
-                    double x2 = Math.cos(rad) * radius + lastWormhole.getEntrance2().x();
-                    double y2 = lastWormhole.getEntrance2().y();
-                    double z2 = Math.sin(rad) * radius + lastWormhole.getEntrance2().z();
-
-                    lastWormhole.getEntrance1().getWorld().spawnParticle(Particle.PORTAL,x2,y2,z2,1);
-                }
+                drawRings(lastWormhole.getEntrance1());
+                drawRings(lastWormhole.getEntrance2());
                 particleCount = 0;
             }
         }
@@ -68,12 +67,12 @@ public class WormholeStyle extends GameStyle {
 
     @Override
     public void onStart() {
-
+        getGame().broadcastPlayers(MiniMessage.miniMessage().deserialize(getName()));
     }
 
     @Override
     public void onEnd() {
-        if (lastWormhole != null) lastWormhole.delete();
+        if (lastWormhole != null) lastWormhole.getSphereEngine().deleteAll();
     }
 
     @Override
@@ -81,9 +80,21 @@ public class WormholeStyle extends GameStyle {
         return 1;
     }
 
+    private void drawRings(Location location){
+        int radius = 3;
+        for (double rad = 0; rad < 6.28; rad += 0.08) {
+            double x1 = Math.cos(rad) * radius + location.x();
+            double y1 = Math.sin(rad) * radius + location.y();
+            double z1 = location.z();
+
+            location.getWorld().spawnParticle(Particle.PORTAL,x1,y1,z1,1);
+        }
+    }
+
     private Player getRandomPlayer() {
         Random random = new Random();
         int size = getGame().getPlayers().size();
+        if (size == 0) return null;
         int luckyNumber = random.nextInt(size);
         return Bukkit.getPlayer(getGame().getPlayers().get(luckyNumber));
     }

@@ -24,10 +24,15 @@ public abstract class CommonCommand {
         this.pl = pl;
     }
 
-    public abstract void construct(PaperCommandManager<CommandSourceStack> manager, Command.Builder<CommandSourceStack> builder);
+    public abstract void construct(LegacyPaperCommandManager<CommandSender> manager, Command.Builder<CommandSender> builder);
 
-    public void construct(PaperCommandManager<CommandSourceStack> manager){
-        Command.Builder<CommandSourceStack> builder = manager.commandBuilder("sp","pillars").literal(commandName);
+    public void construct(LegacyPaperCommandManager<CommandSender> manager){
+        Command.Builder<CommandSender> builder = manager.commandBuilder("sp","pillars").literal(commandName);
+        
+        builder.permission(permission);
+        if (!allowConsole){
+            builder.senderType(Player.class);
+        }
 
         construct(manager,builder);
     }
