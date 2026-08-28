@@ -10,6 +10,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 
 public class GameManager {
@@ -18,9 +20,11 @@ public class GameManager {
     private List<GameConfig> gameConfigs = new ArrayList<>();
     private List<Game> games = new ArrayList<>();
     private HashMap<UUID, Game> gameFocusMap = new HashMap<>();
+    private Queue<UUID> playersWaiting = new ArrayDeque<>();
 
     public GameManager(StumblePillars pl) {
         this.pl = pl;
+        startQueueCheck();
     }
 
     public void registerGames() {
@@ -56,9 +60,39 @@ public class GameManager {
 
     public Optional<Game> getGame(Player player){
         for (Game game : games){
-            if (game.getPlayers().contains(player.getUniqueId())) return Optional.of(game);
+            if (game.getPlayers().contains(player.getUniqueId()) || game.getSpectators().contains(player.getUniqueId())) return Optional.of(game);
         }
         return Optional.empty();
+    }
+
+    public CompletableFuture<Optional<Game>> getAvailableGame(Player player){
+        return CompletableFuture.supplyAsync(() -> {
+            return Optional.of(getAvailableGameRecursive(player));
+        });
+    }
+
+    private Game getAvailableGameRecursive(Player player){
+        for (Game game : getGames()){
+            if (game.getPlayers().size() < game.getMaxPlayers()){
+                return game;
+            }
+        }
+        return getAvailableGameRecursive(player);
+    }
+
+    private void startQueueCheck(){
+        Bukkit.getScheduler().runTaskTimer(pl,() -> {
+            for (Game game : games){
+                if (playersWaiting.isEmpty()) return;
+                if (!game.getGameState().equals(GameState.WAITING)) continue;
+                if (game.getMaxPlayers() > game.getPlayers().size()){
+                    Player player = Bukkit.getPlayer(playersWaiting.poll());
+                    if (player != null){
+                        game.join(player);
+                    }
+                }
+            }
+        },0L,10L);
     }
 
     public void focus(Player player, Game game){
@@ -86,4 +120,7 @@ public class GameManager {
         return pl;
     }
 
+    public Queue<UUID> getPlayersWaiting() {
+        return playersWaiting;
+    }
 }

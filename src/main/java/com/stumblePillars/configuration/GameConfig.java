@@ -43,6 +43,7 @@ public class GameConfig {
         fileConfiguration.addDefault("gameStartCountdown",30);
         fileConfiguration.addDefault("waitLobby","");
         fileConfiguration.addDefault("russianRouletteLoc","");
+        fileConfiguration.addDefault("worldBorder.size",150);
         createSection("spawns");
         save();
     }

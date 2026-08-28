@@ -2,13 +2,11 @@ package com.stumblePillars.command;
 
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.game.Game;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.incendo.cloud.Command;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
-import org.incendo.cloud.paper.PaperCommandManager;
 import org.incendo.cloud.parser.standard.IntegerParser;
 
 public class SetMinPlayersCommand extends CommonCommand{

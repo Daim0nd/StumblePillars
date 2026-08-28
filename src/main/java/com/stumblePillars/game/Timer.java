@@ -17,8 +17,8 @@ public class Timer {
 
     public void start(Runnable runnable){
         this.timerTask = new TickTask(20,() -> {
-            decrement();
             runnable.run();
+            decrement();
         });
         pl.getTaskManager().register(timerTask);
     }

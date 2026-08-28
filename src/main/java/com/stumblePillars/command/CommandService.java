@@ -37,6 +37,9 @@ public class CommandService {
         commandCollection.add(new SetMinPlayersCommand(pl));
         commandCollection.add(new SetMaxPlayersCommand(pl));
         commandCollection.add(new RussianRouletteCommand(pl));
+        commandCollection.add(new SetBorderLocCommand(pl));
+        commandCollection.add(new SetBorderSizeCommand(pl));
+        commandCollection.add(new SetSpectatorSpawnCommand(pl));
 
         for (CommonCommand command : commandCollection){
 

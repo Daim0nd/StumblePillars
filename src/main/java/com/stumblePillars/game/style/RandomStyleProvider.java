@@ -17,7 +17,7 @@ public class RandomStyleProvider {
        gameStyles.add(new MeteorStyle(pl, game));
        gameStyles.add(new WormholeStyle(pl,game));
        gameStyles.add(new GraplinHookStyle(pl,game));
-       gameStyles.add(new AcidRainStyle(pl,game));
+//       gameStyles.add(new AcidRainStyle(pl,game));
        gameStyles.add(new RandomPotionStyle(pl,game));
        gameStyles.add(new RussianRouletteStyle(pl,game));
     }

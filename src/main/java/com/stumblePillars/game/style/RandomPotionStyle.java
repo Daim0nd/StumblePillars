@@ -45,7 +45,11 @@ public class RandomPotionStyle extends GameStyle{
 
     @Override
     public void onEnd() {
-
+        getGame().getPlayers().forEach(uuid -> {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player == null) return;
+            player.clearActivePotionEffects();
+        });
     }
 
     @Override

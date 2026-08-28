@@ -10,18 +10,17 @@ import com.stumblePillars.game.GameManager;
 import com.stumblePillars.game.GameState;
 import com.stumblePillars.listener.PlayerListener;
 import com.stumblePillars.util.LocationUtil;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.incendo.cloud.execution.CommandExecutionHandler;
 import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
-import org.incendo.cloud.paper.PaperCommandManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.*;
 
 
 public final class StumblePillars extends JavaPlugin {
@@ -37,6 +36,9 @@ public final class StumblePillars extends JavaPlugin {
     private TemplatesFolder templatesFolder;
 
     private Location lobby;
+    private boolean toLobbyOnJoin;
+    private boolean isBlacklist;
+    private List<String> commands = new ArrayList<>();
 
     @Override
     public void onEnable() {
@@ -65,7 +67,13 @@ public final class StumblePillars extends JavaPlugin {
 
         getConfig().options().copyDefaults(true);
         getConfig().addDefault("lobby","NaN");
+        getConfig().addDefault("toLobbyOnJoin",true);
+        getConfig().addDefault("commands.list", Arrays.asList("sp leave","g","l"));
+        getConfig().addDefault("commands.isBlacklist",false);
         saveConfig();
+
+        commands = getConfig().getStringList("commands.list");
+        isBlacklist = getConfig().getBoolean("commands.isBlacklist");
 
         this.setupLobby();
 
@@ -75,7 +83,10 @@ public final class StumblePillars extends JavaPlugin {
     @Override
     public void onDisable() {
         for (Game game : gameManager.getGames()){
-            if (game.getGameState().equals(GameState.RUNNING)) game.stop();
+            if (game.getGameState().equals(GameState.RUNNING)){
+                game.stop();
+                arenaManager.deleteInstance(game.getArenaInstance().getInstanceName());
+            }
         }
     }
 
@@ -86,6 +97,7 @@ public final class StumblePillars extends JavaPlugin {
             return;
         }
         this.lobby = LocationUtil.stringToLocation(getConfig().getString("lobby"));
+        toLobbyOnJoin = getConfig().getBoolean("toLobbyOnJoin",true);
     }
 
     public void setLobby(Location location){
@@ -124,5 +136,17 @@ public final class StumblePillars extends JavaPlugin {
 
     public TemplatesFolder getTemplatesFolder() {
         return templatesFolder;
+    }
+
+    public boolean isToLobbyOnJoin() {
+        return toLobbyOnJoin;
+    }
+
+    public List<String> getCommands() {
+        return commands;
+    }
+
+    public boolean isBlacklist() {
+        return isBlacklist;
     }
 }

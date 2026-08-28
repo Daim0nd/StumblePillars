@@ -15,20 +15,24 @@ public class MessagesConfig {
     private FileConfiguration fileConfiguration;
     private StumblePillars pl;
 
-    public static String SET_LOBBY = "Você setou o lobby com sucesso!";
-    public static String GAME_JOIN = "Você entrou no jogo!";
-    public static String GAME_NOT_EXISTS = "Esse jogo não existe!";
-    public static String INCOMPLETE_GAME = "Você não pode entrar nesse jogo!";
-    public static String GAME_FULL = "§cO jogo está cheio!";
-    public static String GAME_ALREADY_STARTED = "§cO jogo já começou ou está reconstruindo!";
-    public static String PLAYER_JOINED = "§a{player} entrou no jogo! (§b{current}§a/§b{max}§a)";
-    public static String PLAYER_LEFT = "§c{player} saiu do jogo! (§b{current}§c/§b{max}§c)";
-    public static String GAME_WILL_START = "§eO jogo começará em {seconds} segundos!";
-    public static String GAME_COUNTDOWN = "§6⏱ Jogo começando em {seconds}...";
-    public static String GAME_COUNTDOWN_CANCELLED = "§cJogadores insuficientes. Countdown cancelado!";
-    public static String GAME_STARTED = "§a✓ Jogo iniciado!";
-    public static String GAME_NOT_ENOUGH_PLAYERS = "§cNão há jogadores suficientes!";
-    public static String GAME_START_TEXT = "§a§lGAME START!";
+    public static String SET_LOBBY = "<green>Você setou o lobby com sucesso!</green>";
+    public static String GAME_JOIN = "<green>Você entrou no jogo!</green>";
+    public static String GAME_NOT_EXISTS = "<red>Esse jogo não existe!</red>";
+    public static String INCOMPLETE_GAME = "<red>Você não pode entrar nesse jogo!</red>";
+    public static String GAME_FULL = "<red>O jogo está cheio!</red>";
+    public static String GAME_ALREADY_STARTED = "<red>O jogo já começou ou está reconstruindo!</red>";
+    public static String PLAYER_JOINED = "<green>{player} entrou no jogo! (<aqua>{current}</aqua>/<aqua>{max}</aqua>)</green>";
+    public static String PLAYER_LEFT = "<red>{player} saiu do jogo! (<aqua>{current}</aqua>/<aqua>{max}</aqua>)</red>";
+    public static String GAME_WILL_START = "<yellow>O jogo começará em {seconds} segundos!</yellow>";
+    public static String GAME_COUNTDOWN = "<gold>⏱ Jogo começando em {seconds}...</gold>";
+    public static String GAME_COUNTDOWN_CANCELLED = "<red>Jogadores insuficientes. Countdown cancelado!</red>";
+    public static String GAME_STARTED = "<green>✓ Jogo iniciado!</green>";
+    public static String GAME_NOT_ENOUGH_PLAYERS = "<red>Não há jogadores suficientes!</red>";
+    public static String GAME_START_TEXT = "<green><bold>GAME START!</bold></green>";
+    public static String SET_BORDER_SIZE = "<green>Tamanho da borda setado para: {size}</green>";
+    public static String WIN_MESSAGE = "<green>Parabéns {player}!</green>";
+    public static String SEARCHING_GAME = "<gray> Procurando jogo disponível!</gray>";
+    public static String BLOCKED_COMMAND = "<gray> Você não pode executar esse comando! </gray>";
 
     public static String GAME_SCOREBOARD_TITLE = "Pillars";
     public static List<String> GAME_SCOREBOARD = Arrays.asList("  Pillars  ","","  Cringe  ","");
@@ -64,6 +68,10 @@ public class MessagesConfig {
         GAME_STARTED = addDefault("game_started",GAME_STARTED);
         GAME_NOT_ENOUGH_PLAYERS = addDefault("game_not_enough_players",GAME_NOT_ENOUGH_PLAYERS);
         GAME_START_TEXT = addDefault("game_start_text",GAME_START_TEXT);
+        SET_BORDER_SIZE = addDefault("set_border_size",SET_BORDER_SIZE);
+        WIN_MESSAGE = addDefault("win_message",WIN_MESSAGE);
+        SEARCHING_GAME = addDefault("searching_game",SEARCHING_GAME);
+        BLOCKED_COMMAND = addDefault("blocked_command",BLOCKED_COMMAND);
 
         GAME_SCOREBOARD_TITLE = addDefault("game_scoreboard_title",GAME_SCOREBOARD_TITLE);
         GAME_SCOREBOARD = addDefault("game_scoreboard",GAME_SCOREBOARD);

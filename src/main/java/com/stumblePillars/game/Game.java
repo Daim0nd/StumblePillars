@@ -15,6 +15,8 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.time.Duration;
@@ -26,6 +28,7 @@ public class Game {
     private StumblePillars pl;
     private GameState gameState = GameState.WAITING;
     private List<UUID> players = new ArrayList<>();
+    private List<UUID> spectators = new ArrayList<>();
     private GameConfig gameConfig;
     private FileConfiguration config;
     private RandomItemService randomService;
@@ -46,6 +49,9 @@ public class Game {
     private HashMap<Player, Location> spawnLocationMap = new HashMap<>();
     private Location russianRouletteLocation;
     private final Map<UUID, GameBoard> gameBoards = new HashMap<>();
+    private double borderSize;
+    private Location borderLocation;
+    private Location spectatorSpawn;
 
     public Game(String name, StumblePillars pl, String mode) {
         this.name = name;
@@ -59,13 +65,28 @@ public class Game {
     private void load() {
         this.world = LocationUtil.loadAndGetWorld(name);
         this.waitLobby = LocationUtil.stringToLocation(config.getString("waitLobby"));
-        this.minPlayers = config.getInt("minPlayers");
-        this.maxPlayers = config.getInt("maxPlayers");
-        this.WAIT_COUNTDOWN_DURATION = config.getInt("gameStartCountdown");
+        this.minPlayers = config.getInt("minPlayers",2);
+        this.maxPlayers = config.getInt("maxPlayers",10);
+        this.WAIT_COUNTDOWN_DURATION = config.getInt("gameStartCountdown",30);
         List<String> spawnList = config.getStringList("spawns");
         this.spawns = spawnList == null || spawnList.isEmpty() ? new ArrayList<>() : convertSpawns(spawnList);
         this.russianRouletteLocation = LocationUtil.stringToLocation(config.getString("russianRouletteLoc"));
         this.mode = getGameMode(config.getString("gameMode"));
+        this.borderSize = config.getDouble("worldBorder.size",150);
+        this.borderLocation = LocationUtil.stringToLocation(config.getString("worldBorder.borderLoc"));
+        this.spectatorSpawn = LocationUtil.stringToLocation(config.getString("spectatorSpawn"));
+    }
+
+    public void setBorderLocation(Location location){
+        config.set("worldBorder.borderLoc",LocationUtil.locationToString(location));
+        gameConfig.save();
+        this.borderLocation = location;
+    }
+
+    public void setBorderSize(double size){
+        config.set("worldBorder.size",size);
+        gameConfig.save();
+        this.borderSize = size;
     }
 
     public void setWaitLobby(Location location) {
@@ -86,16 +107,22 @@ public class Game {
        this.maxPlayers = amount;
    }
 
-   public void setRussianRouletteLoc(Location loc){
-        config.set("russianRouletteLoc",LocationUtil.locationToString(loc));
+   public void setRussianRouletteLoc(Location location){
+        config.set("russianRouletteLoc",LocationUtil.locationToString(location));
         gameConfig.save();;
-        this.russianRouletteLocation = loc;
+        this.russianRouletteLocation = location;
+   }
+
+   public void setSpectatorSpawn(Location location){
+       config.set("spectatorSpawn",LocationUtil.locationToString(location));
+       gameConfig.save();
+       this.spectatorSpawn = location;
    }
 
     private GameMode getGameMode(String name){
         switch (name){
-            case "NORMAL": return new NoOpMode();
             case "RANDOM": return new RandomMode(pl);
+            case "NORMAL":
             default: return new NoOpMode();
         }
     }
@@ -133,10 +160,10 @@ public class Game {
             return;
         }
 
-        player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_JOIN));
         UUID uuid = player.getUniqueId();
         players.add(uuid);
         toWaitLobby(player);
+        player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_JOIN));
         String joined = MessagesConfig.PLAYER_JOINED
                 .replace("{player}", player.getName())
                 .replace("{current}", String.valueOf(players.size()))
@@ -179,6 +206,7 @@ public class Game {
     }
 
     private void checkAndStartCountdown() {
+        if (!gameState.equals(GameState.WAITING)) return;
         if (players.size() >= minPlayers && !isCountingDown) {
             isCountingDown = true;
             broadcastPlayers(Component.text(MessagesConfig.GAME_WILL_START.replace("{seconds}", String.valueOf(WAIT_COUNTDOWN_DURATION))));
@@ -206,13 +234,13 @@ public class Game {
     }
 
     private void showCountdownTitle(int countdown) {
-        String text = "§e" + countdown;
+        String text = "<color:#54FF89>" + countdown + "</color>";
         players.forEach(uuid -> {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) {
                 Title title = Title.title(
-                        Component.text(text),
-                        Component.text("§7Preparando-se..."),
+                        MiniMessage.miniMessage().deserialize(text),
+                        MiniMessage.miniMessage().deserialize("<color:#858C87>Preparando-se...</color>"),
                         Title.Times.times(Duration.ofMillis(0), Duration.ofMillis(1000), Duration.ofMillis(0))
                 );
                 p.showTitle(title);
@@ -221,9 +249,7 @@ public class Game {
     }
 
     public void start() {
-        if (gameState != GameState.WAITING) {
-            return;
-        }
+        if (gameState != GameState.WAITING) return;
 
         if (players.size() < minPlayers) {
             broadcastPlayers(Component.text(MessagesConfig.GAME_NOT_ENOUGH_PLAYERS));
@@ -241,6 +267,8 @@ public class Game {
 
                         world = LocationUtil.loadAndGetWorld(arenaName);
                         arenaInstance = new ArenaInstance(arenaName,name,world);
+                        setBorder();
+                        spectatorSpawn.setWorld(world);
 
                         gameState = GameState.RUNNING;
                         gameFinishTimer = new Timer(pl,60*5);
@@ -305,43 +333,35 @@ public class Game {
         }
     }
 
-    public void remove(Player player) {
-        UUID uuid = player.getUniqueId();
-        if (!players.contains(uuid)) {
-            return;
-        }
-
-        player.getInventory().clear();
-        players.remove(uuid);
-        removeBoard(uuid);
-        checkLastPlayer();
-        String left = MessagesConfig.PLAYER_LEFT
-                .replace("{player}", player.getName())
-                .replace("{current}", String.valueOf(players.size()))
-                .replace("{max}", String.valueOf(maxPlayers));
-        broadcastPlayers(Component.text(left));
-
-            Bukkit.getScheduler().runTaskLater(pl, () -> {
-                player.spigot().respawn();
-                if (pl.getLobby() != null) {
-                    player.teleport(pl.getLobby());
-                }
-            }, 2L);
-    }
-
     public void stop() {
         gameState = GameState.WAITING;
 
         gameFinishTimer.stop();
         spawnLocationMap.clear();
+        clearBoards();
+
         if (randomService != null) {
             pl.getTaskManager().remove(randomService.getGiveItemTick());
             randomService = null;
         }
 
+        for (UUID uuid : new ArrayList<>(this.spectators)) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player == null) continue;
+
+            removeSpectator(player);
+
+            if (pl.getLobby() != null) {
+                player.teleport(pl.getLobby());
+            }
+        }
+
         players.forEach(uuid -> {
             Player player = Bukkit.getPlayer(uuid);
             if (player == null) return;
+            player.clearActivePotionEffects();
+            player.setHealth(20);
+            player.setFoodLevel(20);
             if (pl.getLobby() != null) {
                 player.teleport(pl.getLobby());
             }
@@ -349,7 +369,7 @@ public class Game {
 
         isCountingDown = false;
         players.clear();
-        clearBoards();
+        spectators.clear();
 
         new BukkitRunnable() {
             @Override
@@ -359,8 +379,7 @@ public class Game {
                     arenaInstance = null;
                 }
             }
-        }.runTaskLater(pl,20*10);
-
+        }.runTaskLater(pl,20*5);
 
         mode.onStop(this);
     }
@@ -375,7 +394,7 @@ public class Game {
 
     public void win(Player player) {
         player.getInventory().clear();
-        player.sendMessage(Component.text("Você ganhou!"));
+        player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.WIN_MESSAGE.replace("{player}",player.getName())));
     }
 
     private void removeBoard(UUID uuid) {
@@ -406,7 +425,8 @@ public class Game {
     public boolean isConfigured() {
         if (waitLobby == null || russianRouletteLocation == null
         || maxPlayers <= 0 || minPlayers <= 0 || minPlayers >= maxPlayers
-        || spawns.isEmpty() || spawns.size() < minPlayers) {
+        || spawns.isEmpty() || spawns.size() < minPlayers || borderLocation == null
+        || spectatorSpawn == null || !pl.isLobbyEnable()) {
             return false;
         }
         return true;
@@ -426,11 +446,81 @@ public class Game {
         if (maxPlayers <= 0) contexts.add(mm(PREFIX+" Jogadores máximos menor ou igual a zero"));
         if (minPlayers <= 0) contexts.add(mm(PREFIX+" Jogadores mínimos menores ou iguais a zero"));
         if (minPlayers >= maxPlayers) contexts.add(mm(PREFIX+" Jogadores mínimos maior que jogadores máximos"));
-        if (spawns.isEmpty() || spawns.size() <= minPlayers) contexts.add(mm(PREFIX+" Localização dos spawns inexistentes ou quantidade de jogadores mínimos é maior que a quantidade de spawns"));
-
+        if (spawns.isEmpty() || spawns.size() < minPlayers) contexts.add(mm(PREFIX+" Localização dos spawns inexistentes ou quantidade de jogadores mínimos é maior que a quantidade de spawns"));
+        if (borderLocation == null) contexts.add(mm(PREFIX+ " Localização da borda não definida!"));
+        if (spectatorSpawn == null) contexts.add(mm(PREFIX+ " Spawn dos spectadores faltando!"));
+        if (!pl.isLobbyEnable()) contexts.add(mm(PREFIX+" Lobby não setado!"));
         contexts.add(mm(""));
 
         return contexts;
+    }
+
+    public void addSpectator(Player player){
+        if (!gameState.equals(GameState.RUNNING)) return;
+        UUID uuid = player.getUniqueId();
+
+        if (!spectators.contains(uuid)) spectators.add(uuid);
+
+        player.teleport(spectatorSpawn);
+
+        players.remove(uuid);
+        player.getInventory().clear();
+        if (randomService != null)randomService.removePlayer(player);
+        player.setHealth(20);
+        player.setFoodLevel(20);
+        player.setCollidable(false);
+        player.setGameMode(org.bukkit.GameMode.ADVENTURE);
+        player.setAllowFlight(true);
+        player.setFlying(true);
+
+
+        String left = MessagesConfig.PLAYER_LEFT
+                .replace("{player}", player.getName())
+                .replace("{current}", String.valueOf(players.size()))
+                .replace("{max}", String.valueOf(maxPlayers));
+        broadcastPlayers(Component.text(left));
+
+        for(Player on : Bukkit.getOnlinePlayers()){
+            if (on.equals(player)) continue;
+            if (getSpectators().contains(on.getUniqueId())){
+                on.showPlayer(pl,player);
+                player.showPlayer(pl,on);
+            } else if (getPlayers().contains(on.getUniqueId())) {
+                player.showPlayer(pl,on);
+                on.hidePlayer(pl,player);
+            }
+        }
+
+        if (player.getPassenger() != null)
+            player.getPassenger().remove();
+
+        player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, Integer.MAX_VALUE, 1, false));
+
+        player.getInventory().setArmorContents(null);
+
+        checkLastPlayer();
+    }
+
+    public void removeSpectator(Player player){
+        if (!spectators.contains(player.getUniqueId())) return;
+        spectators.remove(player.getUniqueId());
+        player.setFlying(false);
+        player.setGameMode(org.bukkit.GameMode.SURVIVAL);
+        player.setAllowFlight(false);
+        player.setCollidable(true);
+        player.setHealth(20);
+        player.setFoodLevel(20);
+        player.clearActivePotionEffects();
+
+        for(Player on : Bukkit.getOnlinePlayers()){
+            if (on.equals(player)) continue;
+            player.showPlayer(pl,on);
+            on.showPlayer(pl,player);
+        }
+    }
+
+    private void setBorder(){
+        world.getWorldBorder().setSize(borderSize);
     }
 
     private Component mm(String s){
@@ -461,13 +551,19 @@ public class Game {
         return Collections.unmodifiableList(players);
     }
 
-    public int getPlayerCount() {
-        return players.size();
+    public Location getSpectatorSpawn() {
+        return spectatorSpawn;
+    }
+
+    public List<UUID> getSpectators() {
+        return spectators;
     }
 
     public World getWorld() {
         return world;
     }
+
+
 
     public Location getRussianRouletteLocation() {
         if (russianRouletteLocation == null) return null;
@@ -477,6 +573,10 @@ public class Game {
 
     public Timer getGameFinishTimer() {
         return gameFinishTimer;
+    }
+
+    public ArenaInstance getArenaInstance() {
+        return arenaInstance;
     }
 
     public GameStyle getCurrentGameStyle() {

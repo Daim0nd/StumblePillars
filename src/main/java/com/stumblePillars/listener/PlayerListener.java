@@ -1,24 +1,31 @@
 package com.stumblePillars.listener;
 
 import com.stumblePillars.StumblePillars;
+import com.stumblePillars.configuration.MessagesConfig;
 import com.stumblePillars.game.Game;
 import com.stumblePillars.game.GameState;
 import com.stumblePillars.game.ItemFactory;
 import com.stumblePillars.game.style.RussianRouletteStyle;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.FishHook;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Skeleton;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerFishEvent;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
+import java.util.UUID;
 
 public class PlayerListener implements Listener {
 
@@ -29,12 +36,112 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler
+    public void onCommandProcess(PlayerCommandPreprocessEvent event){
+        Player player = event.getPlayer();
+        if (player.isOp()) return;
+        Optional<Game> opGame = pl.getGameManager().getGame(player);
+        if(opGame.isEmpty()) return;
+
+        Game game = opGame.get();
+        if (game.getPlayers().contains(player.getUniqueId())){
+            for (String command : pl.getCommands()){
+                if ("/".concat(command).equals(event.getMessage())){
+                    if (pl.isBlacklist()){
+                        event.setCancelled(true);
+                        player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.BLOCKED_COMMAND));
+                    }
+                    else event.setCancelled(false);
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerBreak(BlockBreakEvent event){
+        Player player = event.getPlayer();
+        Optional<Game> opGame = pl.getGameManager().getGame(player);
+        if(opGame.isEmpty()) return;
+
+        Game game = opGame.get();
+        if(game.getGameState().equals(GameState.WAITING)){
+            event.setCancelled(true);
+        }
+
+    }
+
+    @EventHandler
+    public void onPlayerDamage(@NotNull EntityDamageEvent e) {
+        if (!(e.getEntity() instanceof final Player player)) {
+            return;
+        }
+
+        Optional<Game> opGame = pl.getGameManager().getGame(player);
+        if(opGame.isEmpty()) return;
+
+        Game game = opGame.get();
+        if(game.getGameState().equals(GameState.WAITING)){
+            e.setCancelled(true);
+        } else if (game.getGameState().equals(GameState.RUNNING)) {
+            if (game.getSpectators().contains(player.getUniqueId())) e.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onHit(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player)) return;
+
+        Optional<Game> opGame = pl.getGameManager().getGame(player);
+        if(opGame.isEmpty()) return;
+
+        Game game = opGame.get();
+        if (game.getSpectators().contains(player.getUniqueId())) event.setCancelled(true);
+
+    }
+
+    @EventHandler
+    public void onInteract(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        Optional<Game> opGame = pl.getGameManager().getGame(player);
+        if(opGame.isEmpty()) return;
+
+        Game game = opGame.get();
+        if (game.getSpectators().contains(player.getUniqueId())) event.setCancelled(true);
+
+    }
+
+    @EventHandler
+    public void onItemPickup(EntityPickupItemEvent event){
+        if (!(event.getEntity() instanceof Player player)) return;
+        Optional<Game> opGame = pl.getGameManager().getGame(player);
+        if(opGame.isEmpty()) return;
+
+        Game game = opGame.get();
+        if (game.getSpectators().contains(player.getUniqueId()) && game.getGameState().equals(GameState.RUNNING)) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onPlayerMove(PlayerMoveEvent event){
+        Player player = event.getPlayer();
+        Optional<Game> opGame = pl.getGameManager().getGame(player);
+        if(opGame.isEmpty()) return;
+
+        Game game = opGame.get();
+        if (game.getSpectators().contains(player.getUniqueId())
+        && player.getLocation().y() <= -100) player.teleport(game.getSpectatorSpawn());
+
+    }
+
+    @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
 
         for (Game game : pl.getGameManager().getGames()) {
-            if (game.getPlayers().contains(player.getUniqueId())) {
+            UUID uuid = player.getUniqueId();
+            if (game.getPlayers().contains(uuid)) {
                 game.leave(player);
+                break;
+            }else if (game.getSpectators().contains(uuid)){
+                game.removeSpectator(player);
                 break;
             }
         }
@@ -42,7 +149,7 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event){
-        if (pl.isLobbyEnable()) event.getPlayer().teleport(pl.getLobby());
+        if (pl.isLobbyEnable() && pl.isToLobbyOnJoin()) event.getPlayer().teleport(pl.getLobby());
     }
 
     @EventHandler
@@ -53,7 +160,11 @@ public class PlayerListener implements Listener {
         Game game = opGame.get();
 
         if (game.getGameState().equals(GameState.RUNNING)){
-            game.remove(player);
+            event.deathMessage(null);
+            Bukkit.getScheduler().runTask(pl, () -> {
+                player.spigot().respawn();
+                game.addSpectator(player);
+            });
         }
 
     }

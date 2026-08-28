@@ -33,6 +33,10 @@ public class RandomItemService {
         player.give(new ItemStack(materials.get(num)));
     }
 
+    public void removePlayer(Player player){
+        players.remove(player.getUniqueId());
+    }
+
     public TickTask getGiveItemTick() {
         return giveItemTick;
     }

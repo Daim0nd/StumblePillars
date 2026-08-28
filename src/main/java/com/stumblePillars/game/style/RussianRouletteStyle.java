@@ -8,6 +8,9 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.PositionMoveRotation;
+import net.minecraft.world.entity.Relative;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -22,12 +25,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Vector;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 public class RussianRouletteStyle extends GameStyle {
 
@@ -44,6 +42,8 @@ public class RussianRouletteStyle extends GameStyle {
     private TickTask timeoutTask;
     private TickTask moveTask;
     private final Random random = new Random();
+    private boolean[] isInLocation = {false};
+    private ArmorStand vehicle;
 
     public RussianRouletteStyle(StumblePillars pl, Game game) {
         super(pl, game);
@@ -72,6 +72,7 @@ public class RussianRouletteStyle extends GameStyle {
 
     @Override
     public void onEnd() {
+        if (currentVictim != null) currentVictim.setGravity(true);
         cleanupRoulette();
     }
 
@@ -133,7 +134,7 @@ public class RussianRouletteStyle extends GameStyle {
             skeleton.setPersistent(false);
             skeleton.setShouldBurnInDay(false);
             skeleton.setRemoveWhenFarAway(false);
-            skeleton.lookAt(center);
+            skeleton.lookAt(currentVictim);
 
             currentSkeletons.add(skeleton);
             skeletonTypeMap.put(skeleton.getEntityId(), types.get(i));
@@ -201,6 +202,16 @@ public class RussianRouletteStyle extends GameStyle {
         cleanupSkeletons();
 
         Location loc = currentVictim.getLocation();
+
+        ServerPlayer serverPlayer = ((CraftPlayer) currentVictim).getHandle();
+        serverPlayer.stopRiding();
+
+        ClientboundSetPassengersPacket packet = new ClientboundSetPassengersPacket(vehicle);
+
+        for (UUID uuid : getGame().getPlayers()) {
+            Player target = Bukkit.getPlayer(uuid);
+            ((CraftPlayer) target).getHandle().connection.send(packet);
+        }
 
         switch (type) {
             case SAFE -> {
@@ -276,6 +287,7 @@ public class RussianRouletteStyle extends GameStyle {
         cleanupSkeletons();
         isRouletteActive = false;
         currentVictim = null;
+        isInLocation[0] = false;
     }
 
     private Player getRandomPlayer() {
@@ -292,6 +304,8 @@ public class RussianRouletteStyle extends GameStyle {
         armorStand.setInvisible(true);
         armorStand.setMarker(true);
         armorStand.setNoGravity(true);
+
+        this.vehicle = armorStand;
 
         ClientboundAddEntityPacket packet =
                 new ClientboundAddEntityPacket(
@@ -316,6 +330,17 @@ public class RussianRouletteStyle extends GameStyle {
                 )
         );
 
+        getGame().getPlayers().forEach(uuid -> {
+            Player target = Bukkit.getPlayer(uuid);
+            if (target == null) return;
+            ServerPlayer handle = ((CraftPlayer) target).getHandle();
+            handle.connection.send(packet);
+            handle.connection.send(new ClientboundSetEntityDataPacket(
+                    armorStand.getId(),
+                    armorStand.getEntityData().packAll()
+            ));
+        });
+
         Location destLoc = location;
         Vec3[] currentPos = {serverPlayer.position()};
         Vec3 dest = new Vec3(destLoc.x(), destLoc.y(), destLoc.z());
@@ -323,6 +348,13 @@ public class RussianRouletteStyle extends GameStyle {
         serverPlayer.startRiding(armorStand);
         ClientboundSetPassengersPacket setPassengersPacket = new ClientboundSetPassengersPacket(armorStand);
         serverPlayer.connection.send(setPassengersPacket);
+
+        getGame().getPlayers().forEach(uuid -> {
+            Player target = Bukkit.getPlayer(uuid);
+            if (player == target) return;
+            ServerPlayer serverPlayerTarget = ((CraftPlayer) target).getHandle();
+            serverPlayerTarget.connection.send(setPassengersPacket);
+        });
         boolean[] isIn = {false};
 
         moveTask = new TickTask(1, () -> {
@@ -334,13 +366,28 @@ public class RussianRouletteStyle extends GameStyle {
             Vec3 difference = dest.subtract(currentPos[0]);
             double distance = difference.length();
             if (distance <= 1) {
+                isInLocation[0] = true;
                 currentPos[0] = dest;
                 serverPlayer.stopRiding();
-                serverPlayer.connection.send(new ClientboundRemoveEntitiesPacket(armorStand.getId()));
                 serverPlayer.teleportTo(dest.x, dest.y, dest.z);
                 isIn[0] = true;
                 removeMoveTask();
                 spawnSkeletons(destLoc);
+
+                armorStand.teleportTo(dest.x, dest.y, dest.z);
+                ClientboundTeleportEntityPacket teleportEntityPacket = new ClientboundTeleportEntityPacket(armorStand.getId(), PositionMoveRotation.of(armorStand), Relative.ROTATION, false);
+                serverPlayer.connection.send(teleportEntityPacket);
+
+                serverPlayer.startRiding(armorStand);
+                ClientboundSetPassengersPacket setPassengersPacket2 = new ClientboundSetPassengersPacket(armorStand);
+                serverPlayer.connection.send(setPassengersPacket2);
+                getGame().getPlayers().forEach(uuid -> {
+                    Player target = Bukkit.getPlayer(uuid);
+                    if (player == target) return;
+                    ServerPlayer serverPlayerTarget = ((CraftPlayer) target).getHandle();
+                    serverPlayerTarget.connection.send(setPassengersPacket2);
+                });
+
                 return;
             }
             currentPos[0] = currentPos[0].add(moveVec);
@@ -352,6 +399,12 @@ public class RussianRouletteStyle extends GameStyle {
                     false
             );
             serverPlayer.connection.send(moveEntityPacket);
+            getGame().getPlayers().forEach(uuid -> {
+                Player target = Bukkit.getPlayer(uuid);
+                if (player == target) return;
+                ServerPlayer serverPlayerTarget = ((CraftPlayer) target).getHandle();
+                serverPlayerTarget.connection.send(moveEntityPacket);
+            });
         });
         getPlugin().getTaskManager().register(moveTask);
     }
@@ -361,5 +414,13 @@ public class RussianRouletteStyle extends GameStyle {
             getPlugin().getTaskManager().remove(moveTask);
             moveTask = null;
         }
+    }
+
+    public Player getCurrentVictim() {
+        return currentVictim;
+    }
+
+    public boolean[] getIsInLocation() {
+        return isInLocation;
     }
 }
