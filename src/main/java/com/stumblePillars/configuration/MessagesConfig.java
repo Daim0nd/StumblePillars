@@ -33,6 +33,8 @@ public class MessagesConfig {
     public static String WIN_MESSAGE = "<green>Parabéns {player}!</green>";
     public static String SEARCHING_GAME = "<gray> Procurando jogo disponível!</gray>";
     public static String BLOCKED_COMMAND = "<gray> Você não pode executar esse comando! </gray>";
+    public static String PLAYER_DIED = "<gray> O player <red>{player}</red> morreu! </gray>";
+    public static String ALREADY_PLAYING = "<red> Você já está jogando!</red>";
 
     public static String GAME_SCOREBOARD_TITLE = "Pillars";
     public static List<String> GAME_SCOREBOARD = Arrays.asList("  Pillars  ","","  Cringe  ","");
@@ -72,6 +74,8 @@ public class MessagesConfig {
         WIN_MESSAGE = addDefault("win_message",WIN_MESSAGE);
         SEARCHING_GAME = addDefault("searching_game",SEARCHING_GAME);
         BLOCKED_COMMAND = addDefault("blocked_command",BLOCKED_COMMAND);
+        PLAYER_DIED = addDefault("playerd_died",PLAYER_DIED);
+        ALREADY_PLAYING = addDefault("already_playing",ALREADY_PLAYING);
 
         GAME_SCOREBOARD_TITLE = addDefault("game_scoreboard_title",GAME_SCOREBOARD_TITLE);
         GAME_SCOREBOARD = addDefault("game_scoreboard",GAME_SCOREBOARD);

@@ -15,6 +15,7 @@ import org.bukkit.entity.Skeleton;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
@@ -57,7 +58,20 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerBreak(BlockBreakEvent event){
+    public void onBlockBreak(BlockBreakEvent event){
+        Player player = event.getPlayer();
+        Optional<Game> opGame = pl.getGameManager().getGame(player);
+        if(opGame.isEmpty()) return;
+
+        Game game = opGame.get();
+        if(game.getGameState().equals(GameState.WAITING)){
+            event.setCancelled(true);
+        }
+
+    }
+
+    @EventHandler
+    public void onBlockPlace(BlockPlaceEvent event){
         Player player = event.getPlayer();
         Optional<Game> opGame = pl.getGameManager().getGame(player);
         if(opGame.isEmpty()) return;
@@ -141,7 +155,7 @@ public class PlayerListener implements Listener {
                 game.leave(player);
                 break;
             }else if (game.getSpectators().contains(uuid)){
-                game.removeSpectator(player);
+                game.removeSpectator(player,false);
                 break;
             }
         }

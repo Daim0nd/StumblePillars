@@ -146,17 +146,22 @@ public class Game {
                 missingSettings().forEach(context -> player.sendMessage(context));
                 return;
             }
-            player.sendMessage(Component.text(MessagesConfig.INCOMPLETE_GAME));
+            player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.INCOMPLETE_GAME));
+            return;
+        }
+
+        if (players.contains(player.getUniqueId())){
+            player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.ALREADY_PLAYING));
             return;
         }
 
         if (players.size() >= maxPlayers) {
-            player.sendMessage(Component.text(MessagesConfig.GAME_FULL));
+            player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_FULL));
             return;
         }
 
         if (gameState != GameState.WAITING) {
-            player.sendMessage(Component.text(MessagesConfig.GAME_ALREADY_STARTED));
+            player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_ALREADY_STARTED));
             return;
         }
 
@@ -168,7 +173,7 @@ public class Game {
                 .replace("{player}", player.getName())
                 .replace("{current}", String.valueOf(players.size()))
                 .replace("{max}", String.valueOf(maxPlayers));
-        broadcastPlayers(Component.text(joined));
+        broadcastPlayers(MiniMessage.miniMessage().deserialize(joined));
         GameBoard gameBoard = new GameBoard(player,pl);
         gameBoards.put(uuid, gameBoard);
 
@@ -310,7 +315,7 @@ public class Game {
     private void gameFinishCountdown(){
         int countdown = gameFinishTimer.getCountdown();
         if (countdown <= 0){
-            stop();
+            stop(true);
         }
     }
 
@@ -328,12 +333,16 @@ public class Game {
                 .replace("{max}", String.valueOf(maxPlayers));
         broadcastPlayers(Component.text(left));
 
+        if (player.isOnline()){
+            player.teleport(pl.getLobby());
+        }
+
         if (gameState == GameState.WAITING) {
             checkAndStartCountdown();
         }
     }
 
-    public void stop() {
+    public void stop(boolean hasDelayToDeleteInstance) {
         gameState = GameState.WAITING;
 
         gameFinishTimer.stop();
@@ -349,11 +358,7 @@ public class Game {
             Player player = Bukkit.getPlayer(uuid);
             if (player == null) continue;
 
-            removeSpectator(player);
-
-            if (pl.getLobby() != null) {
-                player.teleport(pl.getLobby());
-            }
+            removeSpectator(player,true);
         }
 
         players.forEach(uuid -> {
@@ -371,15 +376,23 @@ public class Game {
         players.clear();
         spectators.clear();
 
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (arenaInstance != null) {
-                    pl.getArenaManager().deleteInstance(arenaInstance.getInstanceName());
-                    arenaInstance = null;
+        if (hasDelayToDeleteInstance){
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    if (arenaInstance != null) {
+                        pl.getArenaManager().deleteInstance(arenaInstance.getInstanceName());
+                        arenaInstance = null;
+                    }
                 }
+            }.runTaskLater(pl,20*5);
+        }else{
+            if (arenaInstance != null) {
+                pl.getArenaManager().deleteInstance(arenaInstance.getInstanceName());
+                arenaInstance = null;
             }
-        }.runTaskLater(pl,20*5);
+        }
+
 
         mode.onStop(this);
     }
@@ -388,7 +401,7 @@ public class Game {
         if (players.size() == 1) {
             Player winner = Bukkit.getPlayer(players.get(0));
             win(winner);
-            stop();
+            stop(true);
         }
     }
 
@@ -474,11 +487,9 @@ public class Game {
         player.setFlying(true);
 
 
-        String left = MessagesConfig.PLAYER_LEFT
-                .replace("{player}", player.getName())
-                .replace("{current}", String.valueOf(players.size()))
-                .replace("{max}", String.valueOf(maxPlayers));
-        broadcastPlayers(Component.text(left));
+        String died = MessagesConfig.PLAYER_DIED
+                .replace("{player}", player.getName());
+        broadcastPlayers(Component.text(died));
 
         for(Player on : Bukkit.getOnlinePlayers()){
             if (on.equals(player)) continue;
@@ -501,7 +512,7 @@ public class Game {
         checkLastPlayer();
     }
 
-    public void removeSpectator(Player player){
+    public void removeSpectator(Player player, boolean teleportToLobby){
         if (!spectators.contains(player.getUniqueId())) return;
         spectators.remove(player.getUniqueId());
         player.setFlying(false);
@@ -512,6 +523,8 @@ public class Game {
         player.setFoodLevel(20);
         player.clearActivePotionEffects();
 
+        if (teleportToLobby && player.isOnline()) player.teleport(pl.getLobby());
+
         for(Player on : Bukkit.getOnlinePlayers()){
             if (on.equals(player)) continue;
             player.showPlayer(pl,on);
@@ -520,6 +533,7 @@ public class Game {
     }
 
     private void setBorder(){
+        world.getWorldBorder().setCenter(borderLocation);
         world.getWorldBorder().setSize(borderSize);
     }
 

@@ -40,6 +40,7 @@ public class CommandService {
         commandCollection.add(new SetBorderLocCommand(pl));
         commandCollection.add(new SetBorderSizeCommand(pl));
         commandCollection.add(new SetSpectatorSpawnCommand(pl));
+        commandCollection.add(new LeaveCommand(pl));
 
         for (CommonCommand command : commandCollection){
 

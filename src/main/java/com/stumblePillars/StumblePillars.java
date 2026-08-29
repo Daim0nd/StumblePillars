@@ -84,7 +84,7 @@ public final class StumblePillars extends JavaPlugin {
     public void onDisable() {
         for (Game game : gameManager.getGames()){
             if (game.getGameState().equals(GameState.RUNNING)){
-                game.stop();
+                game.stop(false);
                 arenaManager.deleteInstance(game.getArenaInstance().getInstanceName());
             }
         }
