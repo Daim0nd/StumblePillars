@@ -14,7 +14,7 @@ import java.util.UUID;
 
 public class LeaveCommand extends CommonCommand{
     public LeaveCommand(StumblePillars pl) {
-        super("leave", "sp.pillars.leave", false, pl);
+        super("leave", "pillars.arena.leave", false, pl);
     }
 
     @Override

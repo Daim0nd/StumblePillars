@@ -13,14 +13,13 @@ import org.incendo.cloud.paper.PaperCommandManager;
 public class SetLobbyCommand extends CommonCommand{
 
     public SetLobbyCommand(StumblePillars pl) {
-        super("setLobby", "pillars.game.set_lobby", false, pl);
+        super("setLobby", "pillars.lobby", false, pl);
     }
 
     @Override
     public void construct(LegacyPaperCommandManager<CommandSender> manager, Command.Builder<CommandSender> builder) {
         manager.command(builder.handler(commandContext -> {
             Player player = (Player) commandContext.sender();
-
 
             Location currentLocation = player.getLocation();
             getPlugin().setLobby(currentLocation);

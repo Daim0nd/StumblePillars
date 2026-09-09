@@ -2,7 +2,7 @@ package com.stumblePillars.game;
 
 public enum GameState {
 
-    WAITING,RUNNING,REBUILDING,DISABLED;
+    WAITING,RUNNING,STOPING,DISABLED;
 
 
 

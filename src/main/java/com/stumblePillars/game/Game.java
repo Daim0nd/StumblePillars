@@ -18,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
 import java.time.Duration;
 import java.util.*;
@@ -36,6 +37,7 @@ public class Game {
     private ArenaInstance arenaInstance;
     private Timer gameStartTimer;
     private Timer gameFinishTimer;
+    private Player winner;
 
     private GameMode mode;
     private String name;
@@ -214,13 +216,13 @@ public class Game {
         if (!gameState.equals(GameState.WAITING)) return;
         if (players.size() >= minPlayers && !isCountingDown) {
             isCountingDown = true;
-            broadcastPlayers(Component.text(MessagesConfig.GAME_WILL_START.replace("{seconds}", String.valueOf(WAIT_COUNTDOWN_DURATION))));
+            broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_WILL_START.replace("{seconds}", String.valueOf(WAIT_COUNTDOWN_DURATION))));
 
             this.gameStartTimer = new Timer(pl,WAIT_COUNTDOWN_DURATION);
             gameStartTimer.start(this::gameStartCountdown);
         } else if (players.size() < minPlayers && isCountingDown) {
             gameStartTimer.stop();
-            broadcastPlayers(Component.text(MessagesConfig.GAME_COUNTDOWN_CANCELLED));
+            broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_COUNTDOWN_CANCELLED));
         }
     }
 
@@ -230,7 +232,7 @@ public class Game {
             showCountdownTitle(countdown);
 
             if (countdown >= 1) {
-                broadcastPlayers(Component.text(MessagesConfig.GAME_COUNTDOWN.replace("{seconds}", String.valueOf(countdown))));
+                broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_COUNTDOWN.replace("{seconds}", String.valueOf(countdown))));
             }
         } else {
             gameStartTimer.stop();
@@ -257,7 +259,7 @@ public class Game {
         if (gameState != GameState.WAITING) return;
 
         if (players.size() < minPlayers) {
-            broadcastPlayers(Component.text(MessagesConfig.GAME_NOT_ENOUGH_PLAYERS));
+            broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_NOT_ENOUGH_PLAYERS));
             isCountingDown = false;
             return;
         }
@@ -278,12 +280,12 @@ public class Game {
                         gameState = GameState.RUNNING;
                         gameFinishTimer = new Timer(pl,60*5);
                         gameFinishTimer.start(Game.this::gameFinishCountdown);
-                        broadcastPlayers(Component.text(MessagesConfig.GAME_STARTED));
+                        broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_STARTED));
                         mapSpawns();
                         players.forEach(uuid -> {
                             Player player = Bukkit.getPlayer(uuid);
                             if (player != null) {
-                                player.sendMessage(Component.text(MessagesConfig.GAME_START_TEXT));
+                                player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_START_TEXT));
                                 Location spawn = spawnLocationMap.get(player);
                                 if (spawn != null) {
                                     player.teleport(spawn);
@@ -305,7 +307,7 @@ public class Game {
                     public void run() {
                         gameState = GameState.WAITING;
                         isCountingDown = false;
-                        broadcastPlayers(Component.text("§cFalha ao iniciar o jogo!"));
+                        broadcastPlayers(MiniMessage.miniMessage().deserialize("§cFalha ao iniciar o jogo!"));
                     }
                 }.runTask(pl);
                 return null;
@@ -331,11 +333,13 @@ public class Game {
                 .replace("{player}", player.getName())
                 .replace("{current}", String.valueOf(players.size()))
                 .replace("{max}", String.valueOf(maxPlayers));
-        broadcastPlayers(Component.text(left));
+        broadcastPlayers(MiniMessage.miniMessage().deserialize(left));
 
         if (player.isOnline()){
             player.teleport(pl.getLobby());
         }
+
+        checkLastPlayer();
 
         if (gameState == GameState.WAITING) {
             checkAndStartCountdown();
@@ -343,8 +347,23 @@ public class Game {
     }
 
     public void stop(boolean hasDelayToDeleteInstance) {
-        gameState = GameState.WAITING;
+        finish();
+//
+//        if (hasDelayToDeleteInstance){
+//            new BukkitRunnable() {
+//                @Override
+//                public void run() {
+//                    finish();
+//                }
+//            }.runTaskLater(pl,20*5);
+//        }else{
+//            finish();
+//        }
+    }
 
+    private void finish(){
+        if (!gameState.equals(GameState.RUNNING)) return;
+        gameState = GameState.STOPING;
         gameFinishTimer.stop();
         spawnLocationMap.clear();
         clearBoards();
@@ -367,32 +386,29 @@ public class Game {
             player.clearActivePotionEffects();
             player.setHealth(20);
             player.setFoodLevel(20);
+            player.getInventory().clear();
             if (pl.getLobby() != null) {
+                player.setFallDistance(0);
                 player.teleport(pl.getLobby());
             }
         });
+
+        if (winner != null){
+            winner.setCollidable(true);
+            winner.setGameMode(org.bukkit.GameMode.SURVIVAL);
+            winner.setAllowFlight(false);
+            winner.setFlying(false);
+        }
 
         isCountingDown = false;
         players.clear();
         spectators.clear();
 
-        if (hasDelayToDeleteInstance){
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (arenaInstance != null) {
-                        pl.getArenaManager().deleteInstance(arenaInstance.getInstanceName());
-                        arenaInstance = null;
-                    }
-                }
-            }.runTaskLater(pl,20*5);
-        }else{
-            if (arenaInstance != null) {
-                pl.getArenaManager().deleteInstance(arenaInstance.getInstanceName());
-                arenaInstance = null;
-            }
+        if (arenaInstance != null) {
+            pl.getArenaManager().deleteInstance(arenaInstance.getInstanceName());
+            arenaInstance = null;
         }
-
+        gameState = GameState.WAITING;
 
         mode.onStop(this);
     }
@@ -406,7 +422,13 @@ public class Game {
     }
 
     public void win(Player player) {
-        player.getInventory().clear();
+        winner = player;
+        player.setHealth(20);
+        player.setFoodLevel(20);
+        player.setCollidable(false);
+        player.setGameMode(org.bukkit.GameMode.ADVENTURE);
+        player.setAllowFlight(true);
+        player.setFlying(true);
         player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.WIN_MESSAGE.replace("{player}",player.getName())));
     }
 
@@ -489,7 +511,7 @@ public class Game {
 
         String died = MessagesConfig.PLAYER_DIED
                 .replace("{player}", player.getName());
-        broadcastPlayers(Component.text(died));
+        broadcastPlayers(MiniMessage.miniMessage().deserialize(died));
 
         for(Player on : Bukkit.getOnlinePlayers()){
             if (on.equals(player)) continue;
@@ -523,7 +545,9 @@ public class Game {
         player.setFoodLevel(20);
         player.clearActivePotionEffects();
 
-        if (teleportToLobby && player.isOnline()) player.teleport(pl.getLobby());
+        if (teleportToLobby && player.isOnline()){
+            player.teleport(pl.getLobby());
+        }
 
         for(Player on : Bukkit.getOnlinePlayers()){
             if (on.equals(player)) continue;
@@ -598,5 +622,9 @@ public class Game {
             return ((RandomMode) mode).getCurrentStyle();
         }
         return null;
+    }
+
+    public Player getWinner() {
+        return winner;
     }
 }

@@ -163,7 +163,9 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event){
-        if (pl.isLobbyEnable() && pl.isToLobbyOnJoin()) event.getPlayer().teleport(pl.getLobby());
+        if (pl.isLobbyEnable() && pl.isToLobbyOnJoin()){
+            event.getPlayer().teleport(pl.getLobby());
+        }
     }
 
     @EventHandler
@@ -192,7 +194,7 @@ public class PlayerListener implements Listener {
             if (event.getHook().getState().equals(FishHook.HookState.UNHOOKED)) {
                 if (event.getState().equals(PlayerFishEvent.State.REEL_IN)) {
                     Vector difference = event.getHook().getLocation().toVector().subtract(player.getLocation().toVector());
-                    player.setVelocity(difference.normalize().multiply(2));
+                    player.setVelocity(difference.normalize().multiply(2.5));
                     player.setCooldown(current.getType(), 100);
                 }
             }

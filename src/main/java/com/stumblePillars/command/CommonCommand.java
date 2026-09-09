@@ -29,7 +29,7 @@ public abstract class CommonCommand {
     public void construct(LegacyPaperCommandManager<CommandSender> manager){
         Command.Builder<CommandSender> builder = manager.commandBuilder("sp","pillars").literal(commandName);
         
-        builder.permission(permission);
+        builder = builder.permission(permission);
         if (!allowConsole){
             builder.senderType(Player.class);
         }

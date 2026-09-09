@@ -36,6 +36,7 @@ public class RussianRouletteStyle extends GameStyle {
     private int spawnCount;
     private boolean isRouletteActive;
     private Player currentVictim;
+    private Location initialPlayerLoc;
     private final List<Skeleton> currentSkeletons = new ArrayList<>();
     private final Map<Integer, SkeletonType> skeletonTypeMap = new HashMap<>();
     private TickTask glowTask;
@@ -103,7 +104,8 @@ public class RussianRouletteStyle extends GameStyle {
             currentVictim = null;
             return;
         }
-        movePlayerToLocation(player, rouletteLoc);
+        initialPlayerLoc = player.getLocation();
+        movePlayer(player, rouletteLoc,true,false);
     }
 
     private void spawnSkeletons(Location center) {
@@ -203,15 +205,7 @@ public class RussianRouletteStyle extends GameStyle {
 
         Location loc = currentVictim.getLocation();
 
-        ServerPlayer serverPlayer = ((CraftPlayer) currentVictim).getHandle();
-        serverPlayer.stopRiding();
-
-        ClientboundSetPassengersPacket packet = new ClientboundSetPassengersPacket(vehicle);
-
-        for (UUID uuid : getGame().getPlayers()) {
-            Player target = Bukkit.getPlayer(uuid);
-            ((CraftPlayer) target).getHandle().connection.send(packet);
-        }
+        movePlayer(currentVictim,initialPlayerLoc,false,true);
 
         switch (type) {
             case SAFE -> {
@@ -297,7 +291,14 @@ public class RussianRouletteStyle extends GameStyle {
         return Bukkit.getPlayer(getGame().getPlayers().get(luckNumber));
     }
 
-    private void movePlayerToLocation(Player player, Location location) {
+    private void removeMoveTask() {
+        if (moveTask != null) {
+            getPlugin().getTaskManager().remove(moveTask);
+            moveTask = null;
+        }
+    }
+
+    private void movePlayer(Player player, Location location, boolean startRoulette, boolean unlockPlayer){
         ServerPlayer serverPlayer = ((CraftPlayer) player).getHandle();
         net.minecraft.world.entity.decoration.ArmorStand armorStand =
                 new net.minecraft.world.entity.decoration.ArmorStand(EntityType.ARMOR_STAND, serverPlayer.level());
@@ -355,6 +356,7 @@ public class RussianRouletteStyle extends GameStyle {
             ServerPlayer serverPlayerTarget = ((CraftPlayer) target).getHandle();
             serverPlayerTarget.connection.send(setPassengersPacket);
         });
+
         boolean[] isIn = {false};
 
         moveTask = new TickTask(1, () -> {
@@ -372,22 +374,13 @@ public class RussianRouletteStyle extends GameStyle {
                 serverPlayer.teleportTo(dest.x, dest.y, dest.z);
                 isIn[0] = true;
                 removeMoveTask();
-                spawnSkeletons(destLoc);
-
-                armorStand.teleportTo(dest.x, dest.y, dest.z);
-                ClientboundTeleportEntityPacket teleportEntityPacket = new ClientboundTeleportEntityPacket(armorStand.getId(), PositionMoveRotation.of(armorStand), Relative.ROTATION, false);
-                serverPlayer.connection.send(teleportEntityPacket);
-
-                serverPlayer.startRiding(armorStand);
-                ClientboundSetPassengersPacket setPassengersPacket2 = new ClientboundSetPassengersPacket(armorStand);
-                serverPlayer.connection.send(setPassengersPacket2);
-                getGame().getPlayers().forEach(uuid -> {
-                    Player target = Bukkit.getPlayer(uuid);
-                    if (player == target) return;
-                    ServerPlayer serverPlayerTarget = ((CraftPlayer) target).getHandle();
-                    serverPlayerTarget.connection.send(setPassengersPacket2);
-                });
-
+                if (startRoulette){
+                    lockPlayer(player,armorStand,dest);
+                    spawnSkeletons(destLoc);
+                }
+                if (unlockPlayer){
+                    unlockPlayer(player);
+                }
                 return;
             }
             currentPos[0] = currentPos[0].add(moveVec);
@@ -407,12 +400,35 @@ public class RussianRouletteStyle extends GameStyle {
             });
         });
         getPlugin().getTaskManager().register(moveTask);
+
     }
 
-    private void removeMoveTask() {
-        if (moveTask != null) {
-            getPlugin().getTaskManager().remove(moveTask);
-            moveTask = null;
+    private void lockPlayer(Player player, ArmorStand armorStand, Vec3 dest){
+        ServerPlayer serverPlayer = ((CraftPlayer) player).getHandle();
+        armorStand.teleportTo(dest.x, dest.y, dest.z);
+        ClientboundTeleportEntityPacket teleportEntityPacket = new ClientboundTeleportEntityPacket(armorStand.getId(), PositionMoveRotation.of(armorStand), Relative.ROTATION, false);
+        serverPlayer.connection.send(teleportEntityPacket);
+
+        serverPlayer.startRiding(armorStand);
+        ClientboundSetPassengersPacket setPassengersPacket2 = new ClientboundSetPassengersPacket(armorStand);
+        serverPlayer.connection.send(setPassengersPacket2);
+        getGame().getPlayers().forEach(uuid -> {
+            Player target = Bukkit.getPlayer(uuid);
+            if (player == target) return;
+            ServerPlayer serverPlayerTarget = ((CraftPlayer) target).getHandle();
+            serverPlayerTarget.connection.send(setPassengersPacket2);
+        });
+    }
+
+    private void unlockPlayer(Player player){
+        ServerPlayer serverPlayer = ((CraftPlayer) currentVictim).getHandle();
+        serverPlayer.stopRiding();
+
+        ClientboundSetPassengersPacket packet = new ClientboundSetPassengersPacket(vehicle);
+
+        for (UUID uuid : getGame().getPlayers()) {
+            Player target = Bukkit.getPlayer(uuid);
+            ((CraftPlayer) target).getHandle().connection.send(packet);
         }
     }
 
