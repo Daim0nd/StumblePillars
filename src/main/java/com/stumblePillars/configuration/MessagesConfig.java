@@ -56,6 +56,11 @@ public class MessagesConfig {
         fileConfiguration = YamlConfiguration.loadConfiguration(file);
         fileConfiguration.options().copyDefaults(true);
 
+        loadMessages();
+
+    }
+
+    private void loadMessages(){
         SET_LOBBY = addDefault("set_lobby",SET_LOBBY);
         GAME_JOIN = addDefault("game_join",GAME_JOIN);
         GAME_NOT_EXISTS = addDefault("game_not_exists",GAME_NOT_EXISTS);
@@ -79,15 +84,16 @@ public class MessagesConfig {
 
         GAME_SCOREBOARD_TITLE = addDefault("game_scoreboard_title",GAME_SCOREBOARD_TITLE);
         GAME_SCOREBOARD = addDefault("game_scoreboard",GAME_SCOREBOARD);
-
         save();
-
-
     }
 
     private String addDefault(String path,String message){
         fileConfiguration.addDefault(path,message);
         return fileConfiguration.getString(path);
+    }
+
+    public void reloadMessages(){
+        loadMessages();
     }
 
     private List<String> addDefault(String path,List<String> list){

@@ -149,4 +149,8 @@ public final class StumblePillars extends JavaPlugin {
     public boolean isBlacklist() {
         return isBlacklist;
     }
+
+    public MessagesConfig getMessagesConfig() {
+        return messagesConfig;
+    }
 }

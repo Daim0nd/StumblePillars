@@ -41,6 +41,7 @@ public class CommandService {
         commandCollection.add(new SetBorderSizeCommand(pl));
         commandCollection.add(new SetSpectatorSpawnCommand(pl));
         commandCollection.add(new LeaveCommand(pl));
+        commandCollection.add(new ReloadCommand(pl));
 
         for (CommonCommand command : commandCollection){
 

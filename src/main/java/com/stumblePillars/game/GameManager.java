@@ -38,6 +38,14 @@ public class GameManager {
         });
     }
 
+    public void reloadGames(){
+        for (Game game : games){
+            game.stop(false);
+        }
+        games.clear();
+        registerGames();
+    }
+
     public Game createGame(String name, World world, String gameMode){
         Game game = new Game(name, pl,gameMode );
         games.add(game);

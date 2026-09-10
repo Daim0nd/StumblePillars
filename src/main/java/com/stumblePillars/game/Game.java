@@ -347,25 +347,23 @@ public class Game {
     }
 
     public void stop(boolean hasDelayToDeleteInstance) {
-        finish();
-//
-//        if (hasDelayToDeleteInstance){
-//            new BukkitRunnable() {
-//                @Override
-//                public void run() {
-//                    finish();
-//                }
-//            }.runTaskLater(pl,20*5);
-//        }else{
-//            finish();
-//        }
+
+        if (hasDelayToDeleteInstance){
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    finish();
+                }
+            }.runTaskLater(pl,20*5);
+        }else{
+            finish();
+        }
     }
 
     private void finish(){
-        if (!gameState.equals(GameState.RUNNING)) return;
         gameState = GameState.STOPING;
-        gameFinishTimer.stop();
-        spawnLocationMap.clear();
+        if (gameFinishTimer != null) gameFinishTimer.stop();
+        if (spawnLocationMap != null) spawnLocationMap.clear();
         clearBoards();
 
         if (randomService != null) {
