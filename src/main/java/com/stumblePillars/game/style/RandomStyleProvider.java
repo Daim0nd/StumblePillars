@@ -2,6 +2,7 @@ package com.stumblePillars.game.style;
 
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.game.Game;
+import com.stumblePillars.game.GameManager;
 import org.bukkit.Bukkit;
 
 import java.util.ArrayList;
@@ -17,7 +18,6 @@ public class RandomStyleProvider {
        gameStyles.add(new MeteorStyle(pl, game));
        gameStyles.add(new WormholeStyle(pl,game));
        gameStyles.add(new GraplinHookStyle(pl,game));
-//       gameStyles.add(new AcidRainStyle(pl,game));
        gameStyles.add(new RandomPotionStyle(pl,game));
        gameStyles.add(new RussianRouletteStyle(pl,game));
     }

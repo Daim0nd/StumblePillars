@@ -37,7 +37,6 @@ public class GameConfig {
         fileConfiguration.options().copyDefaults(true);
 
         fileConfiguration.addDefault("gameMode","NORMAL");
-        fileConfiguration.addDefault("world","");
         fileConfiguration.addDefault("maxPlayers",10);
         fileConfiguration.addDefault("minPlayers",2);
         fileConfiguration.addDefault("gameStartCountdown",30);

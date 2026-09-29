@@ -18,7 +18,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.Vector;
 
 import java.time.Duration;
 import java.util.*;
@@ -278,7 +277,7 @@ public class Game {
                         spectatorSpawn.setWorld(world);
 
                         gameState = GameState.RUNNING;
-                        gameFinishTimer = new Timer(pl,60*5);
+                        gameFinishTimer = new Timer(pl,GAME_COUNTDOWN_DURATION);
                         gameFinishTimer.start(Game.this::gameFinishCountdown);
                         broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_STARTED));
                         mapSpawns();
@@ -620,6 +619,13 @@ public class Game {
             return ((RandomMode) mode).getCurrentStyle();
         }
         return null;
+    }
+
+    public void setGameStyle(GameStyle gameStyle, boolean chosenByStaff){
+        if (mode instanceof RandomMode) {
+            ((RandomMode) mode).setGameStyle(gameStyle);
+            ((RandomMode) mode).setChosenByStaff(chosenByStaff);
+        }
     }
 
     public Player getWinner() {

@@ -42,6 +42,7 @@ public class CommandService {
         commandCollection.add(new SetSpectatorSpawnCommand(pl));
         commandCollection.add(new LeaveCommand(pl));
         commandCollection.add(new ReloadCommand(pl));
+        commandCollection.add(new ChooseStyleCommand(pl));
 
         for (CommonCommand command : commandCollection){
 

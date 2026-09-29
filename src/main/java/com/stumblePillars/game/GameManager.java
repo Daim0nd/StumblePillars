@@ -2,6 +2,8 @@ package com.stumblePillars.game;
 
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.configuration.GameConfig;
+import com.stumblePillars.game.style.GameStyle;
+import com.stumblePillars.game.style.GraplinHookStyle;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -21,6 +23,7 @@ public class GameManager {
     private List<Game> games = new ArrayList<>();
     private HashMap<UUID, Game> gameFocusMap = new HashMap<>();
     private Queue<UUID> playersWaiting = new ArrayDeque<>();
+    public static List<Class<? extends GameStyle>> availableGameStyles = List.of(GraplinHookStyle.class);
 
     public GameManager(StumblePillars pl) {
         this.pl = pl;

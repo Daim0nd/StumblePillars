@@ -9,7 +9,7 @@ public class RandomMode implements GameMode {
     private final StumblePillars pl;
     private GameStyle gameStyle;
     private TickTask tickTask;
-
+    private boolean chosenByStaff;
 
     public RandomMode(StumblePillars pl) {
         this.pl = pl;
@@ -19,11 +19,17 @@ public class RandomMode implements GameMode {
         return gameStyle;
     }
 
+    public void setGameStyle(GameStyle gameStyle){
+        this.gameStyle = gameStyle;
+    }
+
     @Override
     public void onStart(Game game) {
-        RandomStyleProvider randomStyleProvider = new RandomStyleProvider(pl, game);
-        gameStyle = randomStyleProvider.tryYourLuck();
-        if (gameStyle == null) return;
+        if (!isChosenByStaff()){
+            RandomStyleProvider randomStyleProvider = new RandomStyleProvider(pl, game);
+            gameStyle = randomStyleProvider.tryYourLuck();
+            if (gameStyle == null) return;
+        }
 
         tickTask = new TickTask(gameStyle.getTickCooldown(), gameStyle::tick);
         gameStyle.onStart();
@@ -42,5 +48,13 @@ public class RandomMode implements GameMode {
         if (tickTask != null) {
             pl.getTaskManager().remove(tickTask);
         }
+    }
+
+    public boolean isChosenByStaff() {
+        return chosenByStaff;
+    }
+
+    public void setChosenByStaff(boolean chosenByStaff) {
+        this.chosenByStaff = chosenByStaff;
     }
 }
