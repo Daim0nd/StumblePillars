@@ -22,7 +22,7 @@ public class ChooseStyleCommand extends CommonCommand{
 
     @Override
     public void construct(LegacyPaperCommandManager<CommandSender> manager, Command.Builder<CommandSender> builder) {
-        List<Suggestion> tabComplete = Arrays.asList("Wormhole ","RussianRoulette","Potion","GraplinHook","Meteors").stream().map(s -> Suggestion.suggestion(s)).toList();
+        List<Suggestion> tabComplete = Arrays.asList("Wormhole","RussianRoulette","Potion","GraplinHook","Meteors").stream().map(s -> Suggestion.suggestion(s)).toList();
         manager.command(builder.required("style", StringParser.stringParser(), SuggestionProvider.suggesting(tabComplete)).handler(commandContext -> {
             Player player = (Player) commandContext.sender();
             if (getPlugin().getGameManager().getGame(player).isEmpty()) return;

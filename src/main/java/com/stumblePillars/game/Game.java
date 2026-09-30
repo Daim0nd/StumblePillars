@@ -306,7 +306,7 @@ public class Game {
                     public void run() {
                         gameState = GameState.WAITING;
                         isCountingDown = false;
-                        broadcastPlayers(MiniMessage.miniMessage().deserialize("§cFalha ao iniciar o jogo!"));
+                        broadcastPlayers(MiniMessage.miniMessage().deserialize("<red>Falha ao iniciar o jogo!</red>"));
                     }
                 }.runTask(pl);
                 return null;
@@ -335,7 +335,7 @@ public class Game {
         broadcastPlayers(MiniMessage.miniMessage().deserialize(left));
 
         if (player.isOnline()){
-            player.teleport(pl.getLobby());
+            if (pl.isLobbyEnable()) player.teleport(pl.getLobby());
         }
 
         checkLastPlayer();
@@ -543,7 +543,7 @@ public class Game {
         player.clearActivePotionEffects();
 
         if (teleportToLobby && player.isOnline()){
-            player.teleport(pl.getLobby());
+            if(pl.isLobbyEnable()) player.teleport(pl.getLobby());
         }
 
         for(Player on : Bukkit.getOnlinePlayers()){
