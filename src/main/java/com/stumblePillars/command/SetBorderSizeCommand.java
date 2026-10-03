@@ -12,7 +12,7 @@ import org.incendo.cloud.parser.standard.DoubleParser;
 
 public class SetBorderSizeCommand extends CommonCommand{
     public SetBorderSizeCommand(StumblePillars pl) {
-        super("arena", "pillars.arena.border", true, pl);
+        super("arena", "pillars.arena.border", false, pl);
     }
 
     @Override
@@ -22,7 +22,7 @@ public class SetBorderSizeCommand extends CommonCommand{
                 .handler(commandContext -> {
                     Player player = (Player) commandContext.sender();
                     double size = commandContext.get("size");
-                    if(size <= 0){
+                    if(!Double.isFinite(size) || size <= 0){
                         player.sendMessage("O tamanho da borda não pode ser menor ou igual a zero!");
                         return;
                     }
@@ -33,6 +33,8 @@ public class SetBorderSizeCommand extends CommonCommand{
                     Game game = getPlugin().getGameManager().getGameFocusMap().get(player.getUniqueId());
                     game.setBorderSize(size);
                     player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.SET_BORDER_SIZE.replace("{size}",String.valueOf(size))));
+            ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
     }
 }
+

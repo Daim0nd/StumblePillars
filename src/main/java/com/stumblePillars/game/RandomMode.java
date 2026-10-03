@@ -45,8 +45,10 @@ public class RandomMode implements GameMode {
             gameStyle.onEnd();
         }
         gameStyle = null;
+        chosenByStaff = false;
         if (tickTask != null) {
             pl.getTaskManager().remove(tickTask);
+            tickTask = null;
         }
     }
 

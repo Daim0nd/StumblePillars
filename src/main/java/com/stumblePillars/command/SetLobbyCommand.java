@@ -24,9 +24,11 @@ public class SetLobbyCommand extends CommonCommand{
             Location currentLocation = player.getLocation();
             getPlugin().setLobby(currentLocation);
 
-            player.sendMessage(MessagesConfig.SET_LOBBY);
+            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(MessagesConfig.SET_LOBBY));
 
+            ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
 
     }
 }
+

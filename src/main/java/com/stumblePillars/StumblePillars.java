@@ -82,11 +82,9 @@ public final class StumblePillars extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (service != null) service.close();
         for (Game game : gameManager.getGames()){
-            if (game.getGameState().equals(GameState.RUNNING)){
-                game.stop(false);
-                arenaManager.deleteInstance(game.getArenaInstance().getInstanceName());
-            }
+            game.stop(false);
         }
     }
 
@@ -101,6 +99,7 @@ public final class StumblePillars extends JavaPlugin {
     }
 
     public void setLobby(Location location){
+        this.lobby = location.clone();
         getConfig().set("lobby",LocationUtil.locationToString(location));
         saveConfig();
     }

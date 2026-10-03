@@ -46,6 +46,9 @@ public class Game {
     private int WAIT_COUNTDOWN_DURATION = 30;
     private int GAME_COUNTDOWN_DURATION = 5 * 60;
     private boolean isCountingDown = false;
+    private boolean starting;
+    private int startGeneration;
+    private org.bukkit.scheduler.BukkitTask finishTask;
     private List<Location> spawns;
     private HashMap<Player, Location> spawnLocationMap = new HashMap<>();
     private Location russianRouletteLocation;
@@ -121,7 +124,8 @@ public class Game {
    }
 
     private GameMode getGameMode(String name){
-        switch (name){
+        switch (name == null ? "NORMAL" : name.toUpperCase(java.util.Locale.ROOT)){
+            case "VOTE": return new VoteMode(pl);
             case "RANDOM": return new RandomMode(pl);
             case "NORMAL":
             default: return new NoOpMode();
@@ -135,7 +139,9 @@ public class Game {
 
         config.set("spawns", spawnsStringList);
         gameConfig.save();
+        this.spawns = convertSpawns(spawnsStringList);
     }
+
 
     private List<Location> convertSpawns(List<String> strings) {
         return strings.stream().map(LocationUtil::stringToLocation).toList();
@@ -161,7 +167,7 @@ public class Game {
             return;
         }
 
-        if (gameState != GameState.WAITING) {
+        if (gameState != GameState.WAITING || starting) {
             player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_ALREADY_STARTED));
             return;
         }
@@ -179,6 +185,7 @@ public class Game {
         gameBoards.put(uuid, gameBoard);
 
         checkAndStartCountdown();
+        mode.onJoin(this, player);
     }
 
     private void mapSpawns() {
@@ -219,8 +226,16 @@ public class Game {
 
             this.gameStartTimer = new Timer(pl,WAIT_COUNTDOWN_DURATION);
             gameStartTimer.start(this::gameStartCountdown);
+            mode.onCountdown(this);
         } else if (players.size() < minPlayers && isCountingDown) {
             gameStartTimer.stop();
+            isCountingDown = false;
+            if (starting) {
+                ++startGeneration;
+                starting = false;
+                mode.onStop(this);
+            }
+            mode.onCountdownCancelled(this);
             broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_COUNTDOWN_CANCELLED));
         }
     }
@@ -235,6 +250,7 @@ public class Game {
             }
         } else {
             gameStartTimer.stop();
+            mode.onCountdownFinished(this);
             start();
         }
     }
@@ -255,14 +271,17 @@ public class Game {
     }
 
     public void start() {
-        if (gameState != GameState.WAITING) return;
+        if (gameState != GameState.WAITING || starting) return;
 
         if (players.size() < minPlayers) {
             broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_NOT_ENOUGH_PLAYERS));
             isCountingDown = false;
+            mode.onStop(this);
             return;
         }
 
+        starting = true;
+        int generation = ++startGeneration;
         CompletableFuture<String> arenaCreate = pl.getArenaManager().createInstance(name);
 
             arenaCreate.thenAccept((arenaName) -> {
@@ -271,6 +290,16 @@ public class Game {
                     @Override
                     public void run() {
 
+                        if (generation != startGeneration || gameState != GameState.WAITING || players.size() < minPlayers) {
+                            pl.getArenaManager().deleteInstance(arenaName);
+                            if (generation == startGeneration) {
+                                starting = false;
+                                isCountingDown = false;
+                                mode.onStop(Game.this);
+                            }
+                            return;
+                        }
+                        starting = false;
                         world = LocationUtil.loadAndGetWorld(arenaName);
                         arenaInstance = new ArenaInstance(arenaName,name,world);
                         setBorder();
@@ -304,8 +333,11 @@ public class Game {
                 new BukkitRunnable() {
                     @Override
                     public void run() {
+                        if (generation != startGeneration) return;
+                        starting = false;
                         gameState = GameState.WAITING;
                         isCountingDown = false;
+                        mode.onStop(Game.this);
                         broadcastPlayers(MiniMessage.miniMessage().deserialize("<red>Falha ao iniciar o jogo!</red>"));
                     }
                 }.runTask(pl);
@@ -327,6 +359,8 @@ public class Game {
         }
 
         players.remove(uuid);
+        mode.onLeave(this, player);
+        if (getCurrentGameStyle() instanceof com.stumblePillars.game.style.RussianRouletteStyle roulette) roulette.releasePlayer(player);
         removeBoard(uuid);
         String left = MessagesConfig.PLAYER_LEFT
                 .replace("{player}", player.getName())
@@ -346,9 +380,12 @@ public class Game {
     }
 
     public void stop(boolean hasDelayToDeleteInstance) {
-
+        if (hasDelayToDeleteInstance && gameState == GameState.STOPING) return;
         if (hasDelayToDeleteInstance){
-            new BukkitRunnable() {
+            gameState = GameState.STOPING;
+            if (gameFinishTimer != null) gameFinishTimer.stop();
+            mode.onStop(this);
+            finishTask = new BukkitRunnable() {
                 @Override
                 public void run() {
                     finish();
@@ -360,7 +397,12 @@ public class Game {
     }
 
     private void finish(){
+        if (finishTask != null) { finishTask.cancel(); finishTask = null; }
+        ++startGeneration;
+        starting = false;
         gameState = GameState.STOPING;
+        if (gameStartTimer != null) gameStartTimer.stop();
+        mode.onStop(this);
         if (gameFinishTimer != null) gameFinishTimer.stop();
         if (spawnLocationMap != null) spawnLocationMap.clear();
         clearBoards();
@@ -395,6 +437,7 @@ public class Game {
             winner.setGameMode(org.bukkit.GameMode.SURVIVAL);
             winner.setAllowFlight(false);
             winner.setFlying(false);
+            winner = null;
         }
 
         isCountingDown = false;
@@ -407,10 +450,11 @@ public class Game {
         }
         gameState = GameState.WAITING;
 
-        mode.onStop(this);
     }
 
     public void checkLastPlayer() {
+        if (gameState != GameState.RUNNING) return;
+        if (players.isEmpty()) { stop(false); return; }
         if (players.size() == 1) {
             Player winner = Bukkit.getPlayer(players.get(0));
             win(winner);
@@ -489,6 +533,7 @@ public class Game {
 
     public void addSpectator(Player player){
         if (!gameState.equals(GameState.RUNNING)) return;
+        if (getCurrentGameStyle() instanceof com.stumblePillars.game.style.RussianRouletteStyle roulette) roulette.releasePlayer(player);
         UUID uuid = player.getUniqueId();
 
         if (!spectators.contains(uuid)) spectators.add(uuid);
@@ -602,8 +647,9 @@ public class Game {
 
     public Location getRussianRouletteLocation() {
         if (russianRouletteLocation == null) return null;
-        russianRouletteLocation.setWorld(world);
-        return russianRouletteLocation;
+        Location location = russianRouletteLocation.clone();
+        location.setWorld(world);
+        return location;
     }
 
     public Timer getGameFinishTimer() {
@@ -622,6 +668,7 @@ public class Game {
     }
 
     public void setGameStyle(GameStyle gameStyle, boolean chosenByStaff){
+        if (mode instanceof VoteMode vote && chosenByStaff) vote.cancelVoting();
         if (mode instanceof RandomMode) {
             ((RandomMode) mode).setGameStyle(gameStyle);
             ((RandomMode) mode).setChosenByStaff(chosenByStaff);
@@ -631,4 +678,18 @@ public class Game {
     public Player getWinner() {
         return winner;
     }
+
+    public GameMode getMode() { return mode; }
+    public boolean isWaitingForPlayers() { return gameState == GameState.WAITING && !starting; }
+    public String getModeName() { return mode instanceof VoteMode ? "VOTE" : mode instanceof RandomMode ? "RANDOM" : "NORMAL"; }
+    public boolean setMode(String value) {
+        if (gameState != GameState.WAITING || starting || !players.isEmpty()) return false;
+        mode.onStop(this);
+        mode = getGameMode(value);
+        config.set("gameMode", value.toUpperCase(java.util.Locale.ROOT));
+        gameConfig.save();
+        return true;
+    }
+    public FileConfiguration getArenaConfig() { return config; }
+    public int getSpawnCount() { return spawns.size(); }
 }

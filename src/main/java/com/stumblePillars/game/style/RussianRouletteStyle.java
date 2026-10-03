@@ -5,20 +5,20 @@ import com.stumblePillars.game.Game;
 import com.stumblePillars.game.TickTask;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.minecraft.network.protocol.game.*;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.PositionMoveRotation;
-import net.minecraft.world.entity.Relative;
-import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.phys.Vec3;
+
+
+
+
+
+import org.bukkit.entity.ArmorStand;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.craftbukkit.entity.CraftPlayer;
+
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Skeleton;
 import org.bukkit.inventory.ItemStack;
@@ -45,6 +45,10 @@ public class RussianRouletteStyle extends GameStyle {
     private final Random random = new Random();
     private boolean[] isInLocation = {false};
     private ArmorStand vehicle;
+    private boolean allowDismount;
+    private boolean choiceMade;
+    private boolean savedGravity;
+    private final List<org.bukkit.scheduler.BukkitTask> delayedTasks = new ArrayList<>();
 
     public RussianRouletteStyle(StumblePillars pl, Game game) {
         super(pl, game);
@@ -73,7 +77,7 @@ public class RussianRouletteStyle extends GameStyle {
 
     @Override
     public void onEnd() {
-        if (currentVictim != null) currentVictim.setGravity(true);
+
         cleanupRoulette();
     }
 
@@ -86,6 +90,8 @@ public class RussianRouletteStyle extends GameStyle {
         Player player = getRandomPlayer();
         if (player == null) return;
         currentVictim = player;
+        savedGravity = player.hasGravity();
+        choiceMade = false;
         isRouletteActive = true;
 
         player.sendMessage(MiniMessage.miniMessage().deserialize(
@@ -161,7 +167,11 @@ public class RussianRouletteStyle extends GameStyle {
     }
 
     private void checkGlow() {
-        if (!isRouletteActive || currentVictim == null || !currentVictim.isOnline()) return;
+        if (!isRouletteActive || currentVictim == null) return;
+        if (!currentVictim.isOnline() || currentVictim.isDead() || !getGame().getPlayers().contains(currentVictim.getUniqueId())) {
+            cleanupRoulette();
+            return;
+        }
 
         Location eyeLoc = currentVictim.getEyeLocation();
         Vector direction = eyeLoc.getDirection();
@@ -199,51 +209,39 @@ public class RussianRouletteStyle extends GameStyle {
     }
 
     private void handleChoice(SkeletonType type) {
-        if (!isRouletteActive || currentVictim == null) return;
-
+        if (!isRouletteActive || currentVictim == null || choiceMade) return;
+        choiceMade = true;
         cleanupSkeletons();
-
-        Location loc = currentVictim.getLocation();
-
-        movePlayer(currentVictim,initialPlayerLoc,false,true);
-
+        Player victim = currentVictim;
+        Location loc = victim.getLocation();
         switch (type) {
             case SAFE -> {
                 loc.getWorld().playSound(loc, Sound.BLOCK_NOTE_BLOCK_PLING, 2f, 2f);
                 loc.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, loc, 50, 2, 2, 2);
-                currentVictim.sendMessage(MiniMessage.miniMessage().deserialize(
-                        "<green>✔ Este esqueleto é inofensivo! Você escapou!</green>"
-                ));
-                Bukkit.getScheduler().runTaskLater(getPlugin(), this::cleanupRoulette, 30L);
+                victim.sendMessage(MiniMessage.miniMessage().deserialize("<green>✔ Este esqueleto é inofensivo! Você escapou!</green>"));
+                movePlayer(victim, initialPlayerLoc, false, true);
             }
             case LEGENDARY -> {
                 loc.getWorld().playSound(loc, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
                 loc.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, loc, 80, 2, 2, 2, 0.5);
-                loc.getWorld().spawnParticle(Particle.ENCHANT, loc, 60, 2, 2, 2, 0.3);
                 giveLegendaryItem();
-                currentVictim.sendMessage(MiniMessage.miniMessage().deserialize(
-                        "<gradient:#FFD700:#FFA500>✦ Este esqueleto lhe presenteou com um item lendário!</gradient>"
-                ));
-                Bukkit.getScheduler().runTaskLater(getPlugin(), this::cleanupRoulette, 30L);
+                victim.sendMessage(MiniMessage.miniMessage().deserialize("<gradient:#FFD700:#FFA500>✦ Este esqueleto lhe presenteou com um item lendário!</gradient>"));
+                movePlayer(victim, initialPlayerLoc, false, true);
             }
             case DEATH -> {
-                loc.getWorld().strikeLightning(loc);
+                loc.getWorld().strikeLightningEffect(loc);
                 loc.getWorld().playSound(loc, Sound.ENTITY_WITHER_DEATH, 1.5f, 0.5f);
                 loc.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, loc, 1);
                 loc.getWorld().spawnParticle(Particle.SOUL, loc, 100, 2, 2, 2, 0.1);
-                currentVictim.sendMessage(MiniMessage.miniMessage().deserialize(
-                        "<red><bold>☠ VOCÊ MORREU!</bold> <gray>Este esqueleto era a morte certa...</gray>"
-                ));
-
-                Player victim = currentVictim;
-                Bukkit.getScheduler().runTaskLater(getPlugin(), () -> {
-                    victim.setHealth(0);
+                victim.sendMessage(MiniMessage.miniMessage().deserialize("<red><bold>☠ VOCÊ MORREU!</bold> <gray>Este esqueleto era a morte certa...</gray>"));
+                delayedTasks.add(Bukkit.getScheduler().runTaskLater(getPlugin(), () -> {
+                    if (!isRouletteActive || currentVictim != victim) return;
                     cleanupRoulette();
-                }, 40L);
+                    if (victim.isOnline() && getGame().getPlayers().contains(victim.getUniqueId())) victim.setHealth(0);
+                }, 40L));
             }
         }
     }
-
     private void giveLegendaryItem() {
         ItemStack sword = new ItemStack(Material.NETHERITE_SWORD);
         ItemMeta meta = sword.getItemMeta();
@@ -279,11 +277,34 @@ public class RussianRouletteStyle extends GameStyle {
 
     private void cleanupRoulette() {
         cleanupSkeletons();
+        delayedTasks.forEach(org.bukkit.scheduler.BukkitTask::cancel);
+        delayedTasks.clear();
+        allowDismount = true;
+        if (vehicle != null) {
+            vehicle.eject();
+            vehicle.remove();
+            vehicle = null;
+        }
+        if (currentVictim != null) {
+            currentVictim.setGravity(savedGravity);
+            currentVictim.setFallDistance(0);
+        }
+        allowDismount = false;
         isRouletteActive = false;
         currentVictim = null;
+        choiceMade = false;
         isInLocation[0] = false;
     }
 
+    public boolean blocksDismount(Player player, org.bukkit.entity.Entity mount) {
+        return isRouletteActive && !allowDismount && player.equals(currentVictim) && mount.equals(vehicle);
+    }
+
+    public boolean isProtectedVehicle(org.bukkit.entity.Entity entity) { return entity.equals(vehicle); }
+
+    public void releasePlayer(Player player) {
+        if (player.equals(currentVictim)) cleanupRoulette();
+    }
     private Player getRandomPlayer() {
         int size = getGame().getPlayers().size();
         if (size == 0) return null;
@@ -298,140 +319,55 @@ public class RussianRouletteStyle extends GameStyle {
         }
     }
 
-    private void movePlayer(Player player, Location location, boolean startRoulette, boolean unlockPlayer){
-        ServerPlayer serverPlayer = ((CraftPlayer) player).getHandle();
-        net.minecraft.world.entity.decoration.ArmorStand armorStand =
-                new net.minecraft.world.entity.decoration.ArmorStand(EntityType.ARMOR_STAND, serverPlayer.level());
-        armorStand.setInvisible(true);
-        armorStand.setMarker(true);
-        armorStand.setNoGravity(true);
-
-        this.vehicle = armorStand;
-
-        ClientboundAddEntityPacket packet =
-                new ClientboundAddEntityPacket(
-                        armorStand.getId(),
-                        armorStand.getUUID(),
-                        serverPlayer.getX(),
-                        serverPlayer.getY(),
-                        serverPlayer.getZ(),
-                        armorStand.getXRot(),
-                        armorStand.getYRot(),
-                        armorStand.getType(),
-                        0,
-                        armorStand.getDeltaMovement(),
-                        armorStand.getYHeadRot()
-                );
-        serverPlayer.connection.send(packet);
-
-        serverPlayer.connection.send(
-                new ClientboundSetEntityDataPacket(
-                        armorStand.getId(),
-                        armorStand.getEntityData().packAll()
-                )
-        );
-
-        getGame().getPlayers().forEach(uuid -> {
-            Player target = Bukkit.getPlayer(uuid);
-            if (target == null) return;
-            ServerPlayer handle = ((CraftPlayer) target).getHandle();
-            handle.connection.send(packet);
-            handle.connection.send(new ClientboundSetEntityDataPacket(
-                    armorStand.getId(),
-                    armorStand.getEntityData().packAll()
-            ));
-        });
-
-        Location destLoc = location;
-        Vec3[] currentPos = {serverPlayer.position()};
-        Vec3 dest = new Vec3(destLoc.x(), destLoc.y(), destLoc.z());
-
-        serverPlayer.startRiding(armorStand);
-        ClientboundSetPassengersPacket setPassengersPacket = new ClientboundSetPassengersPacket(armorStand);
-        serverPlayer.connection.send(setPassengersPacket);
-
-        getGame().getPlayers().forEach(uuid -> {
-            Player target = Bukkit.getPlayer(uuid);
-            if (player == target) return;
-            ServerPlayer serverPlayerTarget = ((CraftPlayer) target).getHandle();
-            serverPlayerTarget.connection.send(setPassengersPacket);
-        });
-
-        boolean[] isIn = {false};
-
-        moveTask = new TickTask(1, () -> {
-            if (!player.isOnline() || isIn[0]) {
-                removeMoveTask();
-                return;
-            }
-            Vec3 moveVec = dest.subtract(currentPos[0]).normalize();
-            Vec3 difference = dest.subtract(currentPos[0]);
-            double distance = difference.length();
-            if (distance <= 1) {
-                isInLocation[0] = true;
-                currentPos[0] = dest;
-                serverPlayer.stopRiding();
-                serverPlayer.teleportTo(dest.x, dest.y, dest.z);
-                isIn[0] = true;
-                removeMoveTask();
-                if (startRoulette){
-                    lockPlayer(player,armorStand,dest);
-                    spawnSkeletons(destLoc);
-                }
-                if (unlockPlayer){
-                    unlockPlayer(player);
-                }
-                return;
-            }
-            currentPos[0] = currentPos[0].add(moveVec);
-            ClientboundMoveEntityPacket moveEntityPacket = new ClientboundMoveEntityPacket.Pos(
-                    armorStand.getId(),
-                    (short) (moveVec.x * 4096),
-                    (short) (moveVec.y * 4096),
-                    (short) (moveVec.z * 4096),
-                    false
-            );
-            serverPlayer.connection.send(moveEntityPacket);
-            getGame().getPlayers().forEach(uuid -> {
-                Player target = Bukkit.getPlayer(uuid);
-                if (player == target) return;
-                ServerPlayer serverPlayerTarget = ((CraftPlayer) target).getHandle();
-                serverPlayerTarget.connection.send(moveEntityPacket);
+    private void movePlayer(Player player, Location location, boolean startRoulette, boolean unlockPlayer) {
+        removeMoveTask();
+        if (location == null || location.getWorld() == null) { cleanupRoulette(); return; }
+        Location destination = location.clone();
+        if (vehicle == null || !vehicle.isValid()) {
+            vehicle = player.getWorld().spawn(player.getLocation(), ArmorStand.class, stand -> {
+                stand.setVisible(false);
+                stand.setMarker(true);
+                stand.setGravity(false);
+                stand.setInvulnerable(true);
+                stand.setCollidable(false);
+                stand.setPersistent(false);
+                stand.setSilent(true);
+                stand.setBasePlate(false);
             });
+        }
+        player.setSneaking(false);
+        player.setGravity(false);
+        if (!vehicle.getPassengers().contains(player) && !vehicle.addPassenger(player)) {
+            cleanupRoulette();
+            return;
+        }
+        moveTask = new TickTask(1, () -> {
+            if (!isRouletteActive || currentVictim != player || !player.isOnline() || player.isDead()
+                    || !getGame().getPlayers().contains(player.getUniqueId()) || vehicle == null || !vehicle.isValid()) {
+                cleanupRoulette();
+                return;
+            }
+            Location current = vehicle.getLocation();
+            Vector difference = destination.toVector().subtract(current.toVector());
+            double distance = difference.length();
+            Location next = distance <= 1 ? destination.clone() : current.clone().add(difference.normalize());
+            // Paper 1.21.10 retains passengers when teleporting the vehicle.
+            if (!vehicle.teleport(next)) { cleanupRoulette(); return; }
+            player.setFallDistance(0);
+            if (distance <= 1) {
+                removeMoveTask();
+                isInLocation[0] = true;
+                if (startRoulette) spawnSkeletons(destination);
+                if (unlockPlayer) {
+                    allowDismount = true;
+                    vehicle.removePassenger(player);
+                    player.teleport(destination);
+                    cleanupRoulette();
+                }
+            }
         });
         getPlugin().getTaskManager().register(moveTask);
-
     }
-
-    private void lockPlayer(Player player, ArmorStand armorStand, Vec3 dest){
-        ServerPlayer serverPlayer = ((CraftPlayer) player).getHandle();
-        armorStand.teleportTo(dest.x, dest.y, dest.z);
-        ClientboundTeleportEntityPacket teleportEntityPacket = new ClientboundTeleportEntityPacket(armorStand.getId(), PositionMoveRotation.of(armorStand), Relative.ROTATION, false);
-        serverPlayer.connection.send(teleportEntityPacket);
-
-        serverPlayer.startRiding(armorStand);
-        ClientboundSetPassengersPacket setPassengersPacket2 = new ClientboundSetPassengersPacket(armorStand);
-        serverPlayer.connection.send(setPassengersPacket2);
-        getGame().getPlayers().forEach(uuid -> {
-            Player target = Bukkit.getPlayer(uuid);
-            if (player == target) return;
-            ServerPlayer serverPlayerTarget = ((CraftPlayer) target).getHandle();
-            serverPlayerTarget.connection.send(setPassengersPacket2);
-        });
-    }
-
-    private void unlockPlayer(Player player){
-        ServerPlayer serverPlayer = ((CraftPlayer) currentVictim).getHandle();
-        serverPlayer.stopRiding();
-
-        ClientboundSetPassengersPacket packet = new ClientboundSetPassengersPacket(vehicle);
-
-        for (UUID uuid : getGame().getPlayers()) {
-            Player target = Bukkit.getPlayer(uuid);
-            ((CraftPlayer) target).getHandle().connection.send(packet);
-        }
-    }
-
     public Player getCurrentVictim() {
         return currentVictim;
     }

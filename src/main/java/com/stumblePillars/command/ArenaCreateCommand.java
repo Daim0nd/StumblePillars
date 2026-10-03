@@ -21,17 +21,28 @@ public class ArenaCreateCommand extends CommonCommand {
 
     @Override
     public void construct(LegacyPaperCommandManager<CommandSender> manager, Command.Builder<CommandSender> builder) {
-        final List<String> MODES = Arrays.asList("NORMAL","RANDOM");
+        final List<String> MODES = Arrays.asList("NORMAL","RANDOM","VOTE");
         manager.command(builder.literal("create").required("mode",StringParser.stringParser(), SuggestionProvider.suggestingStrings(MODES)).handler(
                 commandContext -> {
                     Player player = (Player) commandContext.sender();
                     String arenaName = player.getWorld().getName();
-                    String gameMode = commandContext.get("mode");
+                    String gameMode = ((String) commandContext.get("mode")).toUpperCase(java.util.Locale.ROOT);
+                    if (!MODES.contains(gameMode)) {
+                        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize("<red>Use NORMAL, RANDOM ou VOTE.</red>"));
+                        return;
+                    }
+                    if (getPlugin().getGameManager().getGame(arenaName).isPresent()) {
+                        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize("<red>Já existe uma arena neste mundo. Use /sp arena edit.</red>"));
+                        return;
+                    }
                     Game game = getPlugin().getGameManager().createGame(arenaName, player.getWorld(),gameMode);
-                    getPlugin().getGameManager().focus(player,getPlugin().getGameManager().getGame(arenaName).get());
-                    player.sendMessage("Arena " + arenaName + " criada com sucesso!");
+                    game.setMode(gameMode);
+                    getPlugin().getGameManager().focus(player,game);
+                    player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize("<green>Arena criada com sucesso!</green>"));
+                    ArenaSettingsPanel.showFocused(getPlugin(), player);
                 }
         ));
 
     }
 }
+

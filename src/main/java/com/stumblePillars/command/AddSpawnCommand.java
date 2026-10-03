@@ -25,6 +25,8 @@ public class AddSpawnCommand extends CommonCommand{
             Game game = getPlugin().getGameManager().getGameFocusMap().get(player.getUniqueId());
             game.addSpawn(player.getLocation());
             player.sendMessage("Spawn adicionado com sucesso!");
+            ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
     }
 }
+

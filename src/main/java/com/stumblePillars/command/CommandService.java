@@ -43,11 +43,19 @@ public class CommandService {
         commandCollection.add(new LeaveCommand(pl));
         commandCollection.add(new ReloadCommand(pl));
         commandCollection.add(new ChooseStyleCommand(pl));
+        commandCollection.add(new VoteCommand(pl));
+        commandCollection.add(new ArenaModeCommand(pl));
 
         for (CommonCommand command : commandCollection){
 
             command.construct(commandManager);
             Bukkit.getLogger().info("Comando inicializado com sucesso!");
+        }
+    }
+
+    public void close() {
+        for (CommonCommand command : commandCollection) {
+            if (command instanceof TestCommand test) test.closeAll();
         }
     }
 

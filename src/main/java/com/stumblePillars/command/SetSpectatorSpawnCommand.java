@@ -24,6 +24,8 @@ public class SetSpectatorSpawnCommand extends CommonCommand{
             Game game = getPlugin().getGameManager().getGameFocusMap().get(player.getUniqueId());
             game.setSpectatorSpawn(player.getLocation());
             player.sendMessage(MiniMessage.miniMessage().deserialize("<green>Localização de spawn de espectadores setada com sucesso!</green>"));
+            ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
     }
 }
+

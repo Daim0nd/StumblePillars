@@ -25,6 +25,8 @@ public class SetBorderLocCommand extends CommonCommand{
             Game game = getPlugin().getGameManager().getGameFocusMap().get(player.getUniqueId());
             game.setBorderLocation(player.getLocation());
             player.sendMessage(MiniMessage.miniMessage().deserialize("<green>Borda setada com sucesso!</green>"));
+            ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
     }
 }
+

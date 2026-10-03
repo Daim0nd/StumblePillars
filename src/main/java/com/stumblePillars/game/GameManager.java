@@ -46,6 +46,7 @@ public class GameManager {
             game.stop(false);
         }
         games.clear();
+        gameFocusMap.clear();
         registerGames();
     }
 

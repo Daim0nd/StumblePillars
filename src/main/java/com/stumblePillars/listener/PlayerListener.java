@@ -5,6 +5,10 @@ import com.stumblePillars.configuration.MessagesConfig;
 import com.stumblePillars.game.Game;
 import com.stumblePillars.game.GameState;
 import com.stumblePillars.game.ItemFactory;
+import com.stumblePillars.game.VoteMode;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.entity.EntityDismountEvent;
 import com.stumblePillars.game.style.RussianRouletteStyle;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
@@ -34,6 +38,32 @@ public class PlayerListener implements Listener {
 
     public PlayerListener(StumblePillars pl) {
         this.pl = pl;
+    }
+
+    @EventHandler public void onVoteClick(InventoryClickEvent event) {
+        if (!(event.getView().getTopInventory().getHolder() instanceof VoteMode.Menu menu)) return;
+        event.setCancelled(true);
+        if (event.getWhoClicked() instanceof Player player) menu.mode.click(player, menu, event.getRawSlot());
+    }
+
+    @EventHandler public void onVoteDrag(InventoryDragEvent event) {
+        if (event.getView().getTopInventory().getHolder() instanceof VoteMode.Menu) event.setCancelled(true);
+    }
+
+    @EventHandler public void onDismount(EntityDismountEvent event) {
+        if (!(event.getEntity() instanceof Player player) || !event.isCancellable()) return;
+        pl.getGameManager().getGame(player).ifPresent(game -> {
+            if (game.getCurrentGameStyle() instanceof RussianRouletteStyle roulette
+                    && roulette.blocksDismount(player, event.getDismounted())) event.setCancelled(true);
+        });
+    }
+
+    @EventHandler public void onRouletteSneak(PlayerToggleSneakEvent event) {
+        Player player = event.getPlayer();
+        pl.getGameManager().getGame(player).ifPresent(game -> {
+            if (player.getVehicle() != null && game.getCurrentGameStyle() instanceof RussianRouletteStyle roulette
+                    && roulette.blocksDismount(player, player.getVehicle())) event.setCancelled(true);
+        });
     }
 
     @EventHandler
@@ -85,6 +115,12 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerDamage(@NotNull EntityDamageEvent e) {
+        for (Game arena : pl.getGameManager().getGames()) {
+            if (arena.getCurrentGameStyle() instanceof RussianRouletteStyle roulette && roulette.isProtectedVehicle(e.getEntity())) {
+                e.setCancelled(true);
+                return;
+            }
+        }
         if (!(e.getEntity() instanceof final Player player)) {
             return;
         }
@@ -148,6 +184,7 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        pl.getGameManager().getGameFocusMap().remove(player.getUniqueId());
 
         for (Game game : pl.getGameManager().getGames()) {
             UUID uuid = player.getUniqueId();
@@ -176,6 +213,7 @@ public class PlayerListener implements Listener {
         Game game = opGame.get();
 
         if (game.getGameState().equals(GameState.RUNNING)){
+            if (game.getCurrentGameStyle() instanceof RussianRouletteStyle roulette) roulette.releasePlayer(player);
             event.deathMessage(null);
             Bukkit.getScheduler().runTask(pl, () -> {
                 player.spigot().respawn();

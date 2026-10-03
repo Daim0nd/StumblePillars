@@ -38,7 +38,7 @@ public class EditCommand extends CommonCommand {
 
             Game game = opGame.get();
             getPlugin().getGameManager().focus(player, game);
-            player.sendMessage("Você está editando o jogo: " + gameName);
+            ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
 
 

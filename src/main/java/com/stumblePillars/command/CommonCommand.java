@@ -31,7 +31,7 @@ public abstract class CommonCommand {
         
         builder = builder.permission(permission);
         if (!allowConsole){
-            builder.senderType(Player.class);
+            builder = builder.senderType(Player.class);
         }
 
         construct(manager,builder);

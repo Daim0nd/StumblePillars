@@ -30,8 +30,14 @@ public class SetMaxPlayersCommand extends CommonCommand{
             }
             int amount = commandContext.get("amount");
             Game game = pl.getGameManager().getGameFocusMap().get(player.getUniqueId());
+            if (amount <= game.getMinPlayers()) {
+                player.sendMessage(MiniMessage.miniMessage().deserialize("<red>O máximo deve ser maior que o mínimo.</red>"));
+                return;
+            }
             game.setMaxPlayers(amount);
             player.sendMessage(MiniMessage.miniMessage().deserialize("<green> Quantidade de jogadores máximos setada com sucesso! </green>"));
+            ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
     }
 }
+

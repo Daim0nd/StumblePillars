@@ -33,7 +33,7 @@ tasks {
         // Configure the Minecraft version for our task.
         // This is the only required configuration besides applying the plugin.
         // Your plugin's jar (or shadowJar if present) will be used automatically.
-        minecraftVersion("1.19.4")
+        minecraftVersion("1.21.10")
         jvmArgs("-Xms2G", "-Xmx2G")
     }
 
@@ -47,11 +47,17 @@ tasks {
 tasks {
     shadowJar {
         relocate("fr.mrmicky.fastboard", "com.stumblePillars.fastboard")
-        destinationDirectory.set(file("C:\\Users\\ItsDayMoon\\Downloads"))
+        destinationDirectory.set(file(providers.gradleProperty("pluginOutputDir").getOrElse("build/libs")))
         archiveClassifier.set("")
     }
 
     build {
         dependsOn(shadowJar)
     }
+}
+
+tasks.register<JavaExec>("regressionTest") {
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.stumblePillars.game.VoteRegressionTest")
 }

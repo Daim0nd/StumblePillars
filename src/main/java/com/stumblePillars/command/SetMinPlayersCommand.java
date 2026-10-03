@@ -26,8 +26,14 @@ public class SetMinPlayersCommand extends CommonCommand{
             }
             int amount = commandContext.get("amount");
             Game game = pl.getGameManager().getGameFocusMap().get(player.getUniqueId());
+            if (amount <= 0 || amount >= game.getMaxPlayers()) {
+                player.sendMessage(MiniMessage.miniMessage().deserialize("<red>O mínimo deve ser positivo e menor que o máximo.</red>"));
+                return;
+            }
             game.setMinPlayers(amount);
             player.sendMessage(MiniMessage.miniMessage().deserialize("<green> Quantidade de jogadores mínimos setada com sucesso! </green>"));
+            ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
     }
 }
+

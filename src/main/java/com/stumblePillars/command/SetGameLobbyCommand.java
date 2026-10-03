@@ -25,6 +25,8 @@ public class SetGameLobbyCommand extends CommonCommand {
             Game game = getPlugin().getGameManager().getGameFocusMap().get(player.getUniqueId());
             game.setWaitLobby(player.getLocation());
             player.sendMessage("Lobby do jogo definido com sucesso!");
+            ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
     }
 }
+

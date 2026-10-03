@@ -25,6 +25,8 @@ public class RussianRouletteCommand extends CommonCommand{
             Game game = getPlugin().getGameManager().getGameFocusMap().get(player.getUniqueId());
             game.setRussianRouletteLoc(player.getLocation());
             player.sendMessage("Localização da roleta russa definida com sucesso!");
+            ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
     }
 }
+
