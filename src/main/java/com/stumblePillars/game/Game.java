@@ -3,7 +3,6 @@ package com.stumblePillars.game;
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.arena.ArenaInstance;
 import com.stumblePillars.configuration.GameConfig;
-import com.stumblePillars.configuration.MessagesConfig;
 import com.stumblePillars.fastboard.GameBoard;
 import com.stumblePillars.game.style.GameStyle;
 import com.stumblePillars.util.LocationUtil;
@@ -153,34 +152,31 @@ public class Game {
                 missingSettings().forEach(context -> player.sendMessage(context));
                 return;
             }
-            player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.INCOMPLETE_GAME));
+            player.sendMessage(pl.getMessagesConfig().text("incomplete_game"));
             return;
         }
 
         if (players.contains(player.getUniqueId())){
-            player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.ALREADY_PLAYING));
+            player.sendMessage(pl.getMessagesConfig().text("already_playing"));
             return;
         }
 
         if (players.size() >= maxPlayers) {
-            player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_FULL));
+            player.sendMessage(pl.getMessagesConfig().text("game_full"));
             return;
         }
 
         if (gameState != GameState.WAITING || starting) {
-            player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_ALREADY_STARTED));
+            player.sendMessage(pl.getMessagesConfig().text("game_already_started"));
             return;
         }
 
         UUID uuid = player.getUniqueId();
         players.add(uuid);
         toWaitLobby(player);
-        player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_JOIN));
-        String joined = MessagesConfig.PLAYER_JOINED
-                .replace("{player}", player.getName())
-                .replace("{current}", String.valueOf(players.size()))
-                .replace("{max}", String.valueOf(maxPlayers));
-        broadcastPlayers(MiniMessage.miniMessage().deserialize(joined));
+        player.sendMessage(pl.getMessagesConfig().text("game_join"));
+        broadcastPlayers(pl.getMessagesConfig().text("player_joined",
+                "player", player.getName(), "current", players.size(), "max", maxPlayers));
         GameBoard gameBoard = new GameBoard(player,pl);
         gameBoards.put(uuid, gameBoard);
 
@@ -222,7 +218,7 @@ public class Game {
         if (!gameState.equals(GameState.WAITING)) return;
         if (players.size() >= minPlayers && !isCountingDown) {
             isCountingDown = true;
-            broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_WILL_START.replace("{seconds}", String.valueOf(WAIT_COUNTDOWN_DURATION))));
+            broadcastPlayers(pl.getMessagesConfig().text("game_will_start", "seconds", WAIT_COUNTDOWN_DURATION));
 
             this.gameStartTimer = new Timer(pl,WAIT_COUNTDOWN_DURATION);
             gameStartTimer.start(this::gameStartCountdown);
@@ -236,7 +232,7 @@ public class Game {
                 mode.onStop(this);
             }
             mode.onCountdownCancelled(this);
-            broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_COUNTDOWN_CANCELLED));
+            broadcastPlayers(pl.getMessagesConfig().text("game_countdown_cancelled"));
         }
     }
 
@@ -246,7 +242,7 @@ public class Game {
             showCountdownTitle(countdown);
 
             if (countdown >= 1) {
-                broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_COUNTDOWN.replace("{seconds}", String.valueOf(countdown))));
+                broadcastPlayers(pl.getMessagesConfig().text("game_countdown", "seconds", countdown));
             }
         } else {
             gameStartTimer.stop();
@@ -274,7 +270,7 @@ public class Game {
         if (gameState != GameState.WAITING || starting) return;
 
         if (players.size() < minPlayers) {
-            broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_NOT_ENOUGH_PLAYERS));
+            broadcastPlayers(pl.getMessagesConfig().text("game_not_enough_players"));
             isCountingDown = false;
             mode.onStop(this);
             return;
@@ -308,12 +304,12 @@ public class Game {
                         gameState = GameState.RUNNING;
                         gameFinishTimer = new Timer(pl,GAME_COUNTDOWN_DURATION);
                         gameFinishTimer.start(Game.this::gameFinishCountdown);
-                        broadcastPlayers(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_STARTED));
+                        broadcastPlayers(pl.getMessagesConfig().text("game_started"));
                         mapSpawns();
                         players.forEach(uuid -> {
                             Player player = Bukkit.getPlayer(uuid);
                             if (player != null) {
-                                player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_START_TEXT));
+                                player.sendMessage(pl.getMessagesConfig().text("game_start_text"));
                                 Location spawn = spawnLocationMap.get(player);
                                 if (spawn != null) {
                                     player.teleport(spawn);
@@ -362,11 +358,8 @@ public class Game {
         mode.onLeave(this, player);
         if (getCurrentGameStyle() instanceof com.stumblePillars.game.style.RussianRouletteStyle roulette) roulette.releasePlayer(player);
         removeBoard(uuid);
-        String left = MessagesConfig.PLAYER_LEFT
-                .replace("{player}", player.getName())
-                .replace("{current}", String.valueOf(players.size()))
-                .replace("{max}", String.valueOf(maxPlayers));
-        broadcastPlayers(MiniMessage.miniMessage().deserialize(left));
+        broadcastPlayers(pl.getMessagesConfig().text("player_left",
+                "player", player.getName(), "current", players.size(), "max", maxPlayers));
 
         if (player.isOnline()){
             if (pl.isLobbyEnable()) player.teleport(pl.getLobby());
@@ -470,7 +463,7 @@ public class Game {
         player.setGameMode(org.bukkit.GameMode.ADVENTURE);
         player.setAllowFlight(true);
         player.setFlying(true);
-        player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.WIN_MESSAGE.replace("{player}",player.getName())));
+        player.sendMessage(pl.getMessagesConfig().text("win_message", "player", player.getName()));
     }
 
     private void removeBoard(UUID uuid) {
@@ -551,9 +544,7 @@ public class Game {
         player.setFlying(true);
 
 
-        String died = MessagesConfig.PLAYER_DIED
-                .replace("{player}", player.getName());
-        broadcastPlayers(MiniMessage.miniMessage().deserialize(died));
+        broadcastPlayers(pl.getMessagesConfig().text("player_died", "player", player.getName()));
 
         for(Player on : Bukkit.getOnlinePlayers()){
             if (on.equals(player)) continue;

@@ -32,7 +32,7 @@ public class SetBorderSizeCommand extends CommonCommand{
                     }
                     Game game = getPlugin().getGameManager().getGameFocusMap().get(player.getUniqueId());
                     game.setBorderSize(size);
-                    player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.SET_BORDER_SIZE.replace("{size}",String.valueOf(size))));
+                    player.sendMessage(getPlugin().getMessagesConfig().text("set_border_size", "size", size));
             ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));
     }

@@ -1,7 +1,6 @@
 package com.stumblePillars.command;
 
 import com.stumblePillars.StumblePillars;
-import com.stumblePillars.configuration.MessagesConfig;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -24,7 +23,7 @@ public class SetLobbyCommand extends CommonCommand{
             Location currentLocation = player.getLocation();
             getPlugin().setLobby(currentLocation);
 
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(MessagesConfig.SET_LOBBY));
+            player.sendMessage(getPlugin().getMessagesConfig().text("set_lobby"));
 
             ArenaSettingsPanel.showFocused(getPlugin(), player);
         }));

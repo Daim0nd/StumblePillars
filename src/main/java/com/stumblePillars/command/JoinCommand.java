@@ -1,7 +1,6 @@
 package com.stumblePillars.command;
 
 import com.stumblePillars.StumblePillars;
-import com.stumblePillars.configuration.MessagesConfig;
 import com.stumblePillars.game.Game;
 import com.stumblePillars.game.TickTask;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -33,14 +32,14 @@ public class JoinCommand extends CommonCommand {
 
                     if (arenaName.equals("")){
                         getPlugin().getGameManager().getPlayersWaiting().add(player.getUniqueId());
-                        player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.SEARCHING_GAME));
+                        player.sendMessage(getPlugin().getMessagesConfig().text("searching_game"));
                         return;
                     }
 
                     Optional<Game> opGame = getPlugin().getGameManager().getGame(arenaName);
 
                     if (opGame.isEmpty()) {
-                        player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.GAME_NOT_EXISTS));
+                        player.sendMessage(getPlugin().getMessagesConfig().text("game_not_exists"));
                         return;
                     }
 

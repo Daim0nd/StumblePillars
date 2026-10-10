@@ -1,7 +1,6 @@
 package com.stumblePillars.listener;
 
 import com.stumblePillars.StumblePillars;
-import com.stumblePillars.configuration.MessagesConfig;
 import com.stumblePillars.game.Game;
 import com.stumblePillars.game.GameState;
 import com.stumblePillars.game.ItemFactory;
@@ -79,7 +78,7 @@ public class PlayerListener implements Listener {
                 if ("/".concat(command).equals(event.getMessage())){
                     if (pl.isBlacklist()){
                         event.setCancelled(true);
-                        player.sendMessage(MiniMessage.miniMessage().deserialize(MessagesConfig.BLOCKED_COMMAND));
+                        player.sendMessage(pl.getMessagesConfig().text("blocked_command"));
                     }
                     else event.setCancelled(false);
                 }
