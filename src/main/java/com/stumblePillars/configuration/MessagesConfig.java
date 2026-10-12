@@ -62,6 +62,12 @@ public class MessagesConfig {
     }
 
     private void loadColors() {
+        addDefault("pallete.primary","#16c8f6");
+        addDefault("pallete.succes","#c5e3f8");
+        addDefault("pallete.error","#f80314");
+        addDefault("pallete.acent","#079ef9");
+        save();
+
         TagResolver.Builder builder = TagResolver.builder();
         Map<String, String> colorMap = Map.of("primary","#16c8f6","succes","#c5e3f8","error","#f80314","acent","#079ef9");
         for (var entry : colorMap.entrySet()){
@@ -145,9 +151,9 @@ public class MessagesConfig {
         GAME_SCOREBOARD = addDefault("game_scoreboard", GAME_SCOREBOARD);
     }
 
-    private String addDefault(String path, String message) {
-        fileConfiguration.addDefault(path, message);
-        return fileConfiguration.getString(path, message);
+    private String addDefault(String path, String text) {
+        fileConfiguration.addDefault(path, text);
+        return fileConfiguration.getString(path, text);
     }
 
     private List<String> addDefault(String path, List<String> list) {

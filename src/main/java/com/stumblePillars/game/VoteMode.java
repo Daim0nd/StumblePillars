@@ -3,6 +3,8 @@ package com.stumblePillars.game;
 import com.stumblePillars.StumblePillars;
 import com.stumblePillars.game.style.StyleType;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.format.TextDecorationAndState;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
@@ -27,7 +29,7 @@ public class VoteMode extends RandomMode {
         Menu(VoteMode mode, UUID viewer) {
             this.mode = mode;
             this.viewer = viewer;
-            inventory = Bukkit.createInventory(this, 27, Component.text("Vote no estilo da partida"));
+            inventory = Bukkit.createInventory(this, 27, Component.text("Vote no estilo da partida").decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
         }
         @Override public Inventory getInventory() { return inventory; }
     }
@@ -58,11 +60,11 @@ public class VoteMode extends RandomMode {
             StyleType option = ballot.options().get(i);
             ItemStack item = new ItemStack(option.icon);
             var meta = item.getItemMeta();
-            meta.displayName(MiniMessage.miniMessage().deserialize("<gold><name></gold>", Placeholder.unparsed("name", option.label)));
+            meta.displayName(MiniMessage.miniMessage().deserialize("<gold><name></gold>", Placeholder.unparsed("name", option.label)).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE));
             long count = ballot.count(option);
-            meta.lore(List.of(MiniMessage.miniMessage().deserialize(option.description), MiniMessage.miniMessage().deserialize("<gray>Votos: " + count + "</gray>"),
+            meta.lore(List.of(MiniMessage.miniMessage().deserialize(option.description).decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE), MiniMessage.miniMessage().deserialize("<gray>Votos: " + count + "</gray>\n").decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE),
                     MiniMessage.miniMessage().deserialize(option == ballot.selected(menu.viewer)
-                            ? "<green>✔ Seu voto atual</green>" : "<yellow>Clique para votar</yellow>")));
+                            ? "<green>✔ Seu voto atual</green>" : "<yellow><u>Clique para votar</u></yellow>").decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)));
             item.setItemMeta(meta);
             menu.getInventory().setItem(SLOTS[i], item);
         }
